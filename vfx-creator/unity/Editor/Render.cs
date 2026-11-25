@@ -20,9 +20,17 @@ namespace VfxCreator.Editor
         public int fps;
         public float duration;
         public float framing;
+        public float cameraPitch;
         public float travel;
         public float arc;
         public int seed;
+    }
+
+    [Serializable]
+    internal sealed class GraphEvent
+    {
+        public int frame;
+        public string name;
     }
 
     [Serializable]
@@ -32,14 +40,17 @@ namespace VfxCreator.Editor
         public Color32 background;
         public int frames;
         public int visibleFrames;
+        public int clippedFrames;
         public int peakParticles;
         public int peakTrailPoints;
+        public GraphEvent[] graphEvents;
         public string[] notes;
     }
 
     internal static class Render
     {
-        internal static IEnumerator Capture(GameObject prefab, CaptureSettings settings, string output, Action<CaptureManifest> complete)
+        internal static IEnumerator Capture(GameObject prefab, CaptureSettings settings, GraphEvent[] schedule, string output,
+            Action<CaptureManifest> complete)
         {
             if (settings == null || settings.fps < 1 || settings.size < 32 || settings.duration <= 0)
                 throw new ArgumentException("Invalid capture settings.");
@@ -52,7 +63,8 @@ namespace VfxCreator.Editor
             lamp.intensity = 0.85f;
             lamp.transform.rotation = Quaternion.Euler(45, -25, 0);
             var camera = new GameObject("VFX capture camera").AddComponent<Camera>();
-            camera.transform.position = new Vector3(0, 0, -12);
+            var cameraRotation = Quaternion.Euler(settings.cameraPitch, 0, 0);
+            camera.transform.SetPositionAndRotation(cameraRotation * new Vector3(0, 0, -12), cameraRotation);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.037f, 0.043f, 0.060f);
             camera.orthographic = true;
@@ -78,7 +90,8 @@ namespace VfxCreator.Editor
             var image = new Texture2D(settings.size, settings.size, TextureFormat.RGB24, false);
             var manifest = new CaptureManifest
             {
-                settings = settings, frames = Mathf.CeilToInt(settings.duration * settings.fps) + 1
+                settings = settings, frames = Mathf.CeilToInt(settings.duration * settings.fps) + 1,
+                graphEvents = schedule ?? Array.Empty<GraphEvent>()
             };
             try
             {
@@ -88,6 +101,7 @@ namespace VfxCreator.Editor
                 root.transform.position = Position(settings, 0);
                 var systems = root.GetComponentsInChildren<ParticleSystem>();
                 var graphs = root.GetComponentsInChildren<VisualEffect>().Where(effect => effect.enabled && effect.visualEffectAsset != null).ToArray();
+                var eventsByFrame = PlanEvents(graphs, manifest.graphEvents, manifest.frames);
                 var trails = root.GetComponentsInChildren<TrailRenderer>().Where(trail => trail.enabled).ToArray();
                 var trailSamples = Array.ConvertAll(trails, trail => new Queue<Vector3>());
                 var notes = new List<string>();
@@ -111,6 +125,14 @@ namespace VfxCreator.Editor
                 {
                     graph.resetSeedOnPlay = false;
                     graph.startSeed = (uint)settings.seed;
+                    if (manifest.graphEvents.Length > 0)
+                    {
+                        var names = new List<string>();
+                        graph.visualEffectAsset.GetEvents(names);
+                        string unusedEvent = "VfxCreatorPreview";
+                        while (names.Contains(unusedEvent)) unusedEvent += "_";
+                        graph.initialEventName = unusedEvent;
+                    }
                     graph.Reinit();
                     graph.pause = true;
                 }
@@ -149,6 +171,8 @@ namespace VfxCreator.Editor
                             firstParticle = $"First live particle at {camera.WorldToViewportPoint(world):F2}, size {sample[0].GetCurrentSize(owner):F3}, tint {sample[0].GetCurrentColor(owner)}.";
                         }
                     }
+                    if (eventsByFrame.TryGetValue(frame, out var scheduled))
+                        foreach (var item in scheduled) item.graph.SendEvent(item.name);
                     foreach (var graph in graphs) graph.Simulate(delta, 1);
                     for (int i = 0; i < trails.Length; i++)
                     {
@@ -163,7 +187,9 @@ namespace VfxCreator.Editor
                     yield return null;
                     ReadFrame(camera, target, image);
                     foreach (var graph in graphs) highestAlive = Math.Max(highestAlive, graph.aliveParticleCount);
-                    if (image.GetPixels32().Any(pixel => Difference(pixel, manifest.background) > 15)) manifest.visibleFrames++;
+                    var pixels = image.GetPixels32();
+                    if (pixels.Any(pixel => IsForeground(pixel, manifest.background))) manifest.visibleFrames++;
+                    if (TouchesEdge(pixels, settings.size, manifest.background)) manifest.clippedFrames++;
                     File.WriteAllBytes(Path.Combine(output, FrameName(frame)), image.EncodeToPNG());
                 }
                 if (graphs.Length > 0 && manifest.visibleFrames == 0)
@@ -181,6 +207,46 @@ namespace VfxCreator.Editor
                 Object.DestroyImmediate(target);
                 Object.DestroyImmediate(profile);
             }
+        }
+
+        private static Dictionary<int, List<(VisualEffect graph, string name)>> PlanEvents(VisualEffect[] graphs,
+            GraphEvent[] schedule, int frames)
+        {
+            var result = new Dictionary<int, List<(VisualEffect, string)>>();
+            if (schedule.Length == 0) return result;
+            var targets = new Dictionary<string, List<VisualEffect>>(StringComparer.Ordinal);
+            foreach (var graph in graphs)
+            {
+                var names = new List<string>();
+                graph.visualEffectAsset.GetEvents(names);
+                foreach (string name in names.Distinct())
+                {
+                    if (!targets.TryGetValue(name, out var entries))
+                        targets.Add(name, entries = new List<VisualEffect>());
+                    entries.Add(graph);
+                }
+            }
+            foreach (var item in schedule)
+            {
+                if (item == null || item.frame < 0 || item.frame >= frames || string.IsNullOrWhiteSpace(item.name))
+                    throw new ArgumentException($"Graph events require a name and a frame from 0 to {frames - 1}.");
+                if (!targets.TryGetValue(item.name, out var effects))
+                    throw new ArgumentException($"Unknown graph event '{item.name}'. Available events: {string.Join(", ", targets.Keys)}");
+                if (!result.TryGetValue(item.frame, out var events))
+                    result.Add(item.frame, events = new List<(VisualEffect, string)>());
+                foreach (var graph in effects) events.Add((graph, item.name));
+            }
+            return result;
+        }
+
+        private static bool TouchesEdge(Color32[] pixels, int size, Color32 background)
+        {
+            int lastRow = (size - 1) * size;
+            for (int i = 0; i < size; i++)
+                if (IsForeground(pixels[i], background) || IsForeground(pixels[lastRow + i], background) ||
+                    IsForeground(pixels[i * size], background) || IsForeground(pixels[i * size + size - 1], background))
+                    return true;
+            return false;
         }
 
         private static Vector3 Position(CaptureSettings settings, float progress)
@@ -206,6 +272,7 @@ namespace VfxCreator.Editor
         }
 
         internal static string FrameName(int frame) => $"frame-{frame:D4}.png";
+        internal static bool IsForeground(Color32 pixel, Color32 background) => Difference(pixel, background) > 15;
         internal static int Difference(Color32 first, Color32 second) =>
             Math.Max(Math.Abs(first.r - second.r), Math.Max(Math.Abs(first.g - second.g), Math.Abs(first.b - second.b)));
     }

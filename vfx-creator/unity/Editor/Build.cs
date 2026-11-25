@@ -154,6 +154,7 @@ namespace VfxCreator.Editor
             renderer.lengthScale = layer.lengthScale;
             renderer.velocityScale = layer.velocityScale;
             renderer.sortingFudge = layer.sortBias;
+            if (layer.maxScreenSize > 0) renderer.maxParticleSize = Mathf.Clamp01(layer.maxScreenSize);
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             if (renderer.renderMode == ParticleSystemRenderMode.Mesh) renderer.mesh = mesh;

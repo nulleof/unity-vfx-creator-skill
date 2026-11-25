@@ -59,6 +59,7 @@ namespace VfxCreator.Editor
         public float lengthScale = 1;
         public float velocityScale;
         public float sortBias;
+        public float maxScreenSize;
         public TextureRecipe texture = new TextureRecipe();
         public string blend = "add";
         public Color tint = Color.white;

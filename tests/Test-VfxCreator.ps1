@@ -10,6 +10,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 $skill = Join-Path $repo 'vfx-creator'
 $pipeline = Join-Path $skill 'scripts/vfx.ps1'
 $cases = Get-Content -LiteralPath (Join-Path $repo 'evals/cases.json') -Raw | ConvertFrom-Json -AsHashtable
+$cases += Get-Content -LiteralPath (Join-Path $repo 'evals/accuracy-cases.json') -Raw | ConvertFrom-Json -AsHashtable
 $recipes = [Collections.Generic.HashSet[string]]::new()
 foreach ($file in Get-ChildItem -LiteralPath (Join-Path $skill 'catalog') -Filter '*.json' -File) {
     $recipe = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json -AsHashtable
@@ -21,12 +22,13 @@ foreach ($file in Get-ChildItem -LiteralPath (Join-Path $skill 'catalog') -Filte
     }
 }
 foreach ($case in $cases) {
+    $expected = $case['catalogId'] ?? $case.id
     $result = & $pipeline Find -Brief $case.brief | Select-Object -First 1
-    if (!$result -or $result.id -ne $case.id) { throw "Brief did not select '$($case.id)': $($case.brief)" }
+    if (!$result -or $result.id -ne $expected) { throw "Brief did not select '$expected': $($case.brief)" }
     if ($SourceRoot) {
         $pack = Join-Path $SourceRoot $case.package
         $list = @(& $pipeline Inventory -Source $pack -ExpandNested -Work (Join-Path $repo '.vfx-work') |
-            Where-Object { [IO.Path]::GetFileNameWithoutExtension($_.path) -eq $case.prefab })
+            Where-Object { $_.path -eq $case.prefab -or [IO.Path]::GetFileNameWithoutExtension($_.path) -eq $case.prefab })
         if ($list.Count -ne 1) { throw "Expected one '$($case.prefab)' in '$pack'." }
     }
 }

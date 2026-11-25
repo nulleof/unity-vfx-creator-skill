@@ -1,16 +1,42 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.VFX;
 
 namespace VfxCreator.Editor
 {
+    [Serializable]
+    internal sealed class GraphAnalysis
+    {
+        public GraphSnapshot[] graphs;
+    }
+
+    [Serializable]
+    internal sealed class GraphSnapshot
+    {
+        public string component;
+        public string initialEvent;
+        public string[] events;
+        public string[] systems;
+        public GraphParameter[] parameters;
+    }
+
+    [Serializable]
+    internal sealed class GraphParameter
+    {
+        public string name;
+        public string type;
+        public string value;
+    }
+
     internal static class Analyze
     {
-        internal static Recipe Prefab(GameObject root, Request request)
+        internal static Recipe Prefab(GameObject root, Request request, out GraphSnapshot[] graphs)
         {
             var systems = root.GetComponentsInChildren<ParticleSystem>(true).Where(system => EnabledInPrefab(system.transform, root.transform)).ToArray();
             var layers = systems.Select(system => ReadParticle(system, root.transform)).ToList();
@@ -28,11 +54,19 @@ namespace VfxCreator.Editor
             if (root.GetComponentsInChildren<MonoBehaviour>(true).Any(component => component == null))
                 notes.Add("The reference includes a missing script; inspect the visual comparison for behavior it may have supplied.");
 
+            var snapshots = new List<GraphSnapshot>();
             foreach (var effect in root.GetComponentsInChildren<VisualEffect>(true))
             {
                 if (!effect.enabled || !EnabledInPrefab(effect.transform, root.transform) || !effect.visualEffectAsset) continue;
-                AddGraphApproximation(effect, root.transform, request, layers, notes);
+                var properties = new List<VFXExposedProperty>();
+                effect.visualEffectAsset.GetExposedProperties(properties);
+                var snapshot = ReadGraph(effect, root.transform, properties);
+                snapshots.Add(snapshot);
+                notes.Add("VFX Graph systems: " + string.Join(", ", snapshot.systems) + ". Tune the particle approximation against the capture.");
+                notes.Add("Exposed parameters: " + string.Join(", ", snapshot.parameters.Select(parameter => parameter.name + " (" + parameter.type + ")")));
+                AddGraphApproximation(effect, root.transform, request, layers, properties);
             }
+            graphs = snapshots.ToArray();
             if (layers.Count == 0) throw new InvalidOperationException("No active Particle Systems, Trail Renderers or VFX Graph components were found.");
             if (layers.Any(layer => layer.render == "Mesh"))
                 notes.Add("Mesh emitters use newly generated geometry. Adjust the mask and silhouette against the reference.");
@@ -138,6 +172,7 @@ namespace VfxCreator.Editor
                 layer.lengthScale = renderer.lengthScale;
                 layer.velocityScale = renderer.velocityScale;
                 layer.sortBias = renderer.sortingFudge;
+                layer.maxScreenSize = renderer.maxParticleSize;
                 ReadMaterial(layer, renderer.sharedMaterial);
             }
             var sheet = system.textureSheetAnimation;
@@ -234,16 +269,43 @@ namespace VfxCreator.Editor
             layer.glow = additive ? 1.35f : 1;
         }
 
-        private static void AddGraphApproximation(VisualEffect effect, Transform root, Request request, List<Layer> layers, List<string> notes)
+        private static GraphSnapshot ReadGraph(VisualEffect effect, Transform root, List<VFXExposedProperty> properties)
         {
-            var graph = effect.visualEffectAsset;
-            var properties = new List<VFXExposedProperty>();
-            graph.GetExposedProperties(properties);
+            var events = new List<string>();
+            effect.visualEffectAsset.GetEvents(events);
             var systems = new List<string>();
             effect.GetParticleSystemNames(systems);
-            notes.Add("VFX Graph systems: " + string.Join(", ", systems) + ". Tune the particle approximation against the capture.");
-            notes.Add("Exposed parameters: " + string.Join(", ", properties.Select(property => property.name + " (" + property.type.Name + ")")));
+            return new GraphSnapshot
+            {
+                component = effect.transform == root ? root.name : AnimationUtility.CalculateTransformPath(effect.transform, root),
+                initialEvent = effect.initialEventName,
+                events = events.Distinct().OrderBy(name => name, StringComparer.Ordinal).ToArray(),
+                systems = systems.ToArray(),
+                parameters = properties.Select(property => new GraphParameter
+                {
+                    name = property.name, type = property.type.Name, value = ReadGraphValue(effect, property.name)
+                }).ToArray()
+            };
+        }
 
+        private static string ReadGraphValue(VisualEffect effect, string name)
+        {
+            var culture = CultureInfo.InvariantCulture;
+            if (effect.HasFloat(name)) return effect.GetFloat(name).ToString("G9", culture);
+            if (effect.HasInt(name)) return effect.GetInt(name).ToString(culture);
+            if (effect.HasUInt(name)) return effect.GetUInt(name).ToString(culture);
+            if (effect.HasBool(name)) return effect.GetBool(name) ? "true" : "false";
+            if (effect.HasVector2(name)) return effect.GetVector2(name).ToString("G9", culture);
+            if (effect.HasVector3(name)) return effect.GetVector3(name).ToString("G9", culture);
+            if (effect.HasVector4(name)) return effect.GetVector4(name).ToString("G9", culture);
+            if (effect.HasAnimationCurve(name)) return JsonUtility.ToJson(Curve.Read(effect.GetAnimationCurve(name), 1));
+            if (effect.HasGradient(name)) return JsonUtility.ToJson(Ramp.Read(effect.GetGradient(name)));
+            return "";
+        }
+
+        private static void AddGraphApproximation(VisualEffect effect, Transform root, Request request, List<Layer> layers,
+            List<VFXExposedProperty> properties)
+        {
             Color tint = new Color(0.38f, 0.25f, 1, 1);
             var colorProperty = properties.FirstOrDefault(property => property.type == typeof(Vector4) &&
                 (property.name.Contains("Color", StringComparison.OrdinalIgnoreCase) || property.name.Contains("Tint", StringComparison.OrdinalIgnoreCase)));

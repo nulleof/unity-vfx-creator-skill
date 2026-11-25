@@ -27,6 +27,8 @@ param(
     [ValidateRange(1, 120)][int]$Fps = 30,
     [ValidateRange(0.05, 20.0)][float]$Duration = 1.2,
     [ValidateRange(0.1, 100.0)][float]$Framing = 3,
+    [ValidateRange(-89, 89)][float]$CameraPitch = 0,
+    [string]$GraphEvents,
     [ValidateRange(0, 100.0)][float]$Travel = 0,
     [ValidateRange(0, 100.0)][float]$Arc = 0,
     [ValidateRange(1, 2147483647)][int]$Seed = 1729,
@@ -38,6 +40,25 @@ Set-StrictMode -Version 3
 . "$PSScriptRoot/Archive.ps1"
 
 $skill = Split-Path -Parent $PSScriptRoot
+
+$graphSchedule = $null
+if ($PSBoundParameters.ContainsKey('GraphEvents')) {
+    if ($Action -notin @('Learn', 'Render') -or $MetadataOnly) {
+        throw '-GraphEvents requires a Learn or Render capture.'
+    }
+    $graphSchedule = Get-Content -LiteralPath $GraphEvents -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+    if ($graphSchedule -isnot [array] -or !$graphSchedule.Count) {
+        throw '-GraphEvents must point to a nonempty JSON array of {frame, name} entries.'
+    }
+    $lastFrame = [math]::Ceiling([double]([single]($Duration * $Fps)))
+    foreach ($event in $graphSchedule) {
+        if ($event -isnot [System.Collections.IDictionary] -or
+            $event['frame'] -isnot [long] -or $event['frame'] -lt 0 -or $event['frame'] -gt $lastFrame -or
+            $event['name'] -isnot [string] -or [string]::IsNullOrWhiteSpace($event['name'])) {
+            throw "Each graph event needs an integer frame from 0 to $lastFrame and a nonempty name."
+        }
+    }
+}
 
 function Require-VfxArgument([string]$Name, [string]$Value) {
     if ([string]::IsNullOrWhiteSpace($Value)) { throw "$Action requires -$Name." }
@@ -270,7 +291,8 @@ $request = @{
     output = if ($Output) { Full-VfxPath $Output } else { Join-Path $run 'output' }
     prefab = $Prefab
     id = $Id
-    capture = @{ size = $Size; fps = $Fps; duration = $Duration; framing = $Framing; travel = $Travel; arc = $Arc; seed = $Seed }
+    capture = @{ size = $Size; fps = $Fps; duration = $Duration; framing = $Framing; cameraPitch = $CameraPitch; travel = $Travel; arc = $Arc; seed = $Seed }
+    graphEvents = $graphSchedule
 }
 
 if ($Action -eq 'Learn') {

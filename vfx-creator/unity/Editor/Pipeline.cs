@@ -28,6 +28,7 @@ namespace VfxCreator.Editor
         public bool metadataOnly;
         public bool renderAfterBuild;
         public CaptureSettings capture;
+        public GraphEvent[] graphEvents;
     }
 
     [Serializable]
@@ -38,6 +39,7 @@ namespace VfxCreator.Editor
         public string version;
         public string prefab;
         public string recipe;
+        public string analysis;
         public string capture;
         public string report;
         public string[] dependencies;
@@ -65,8 +67,10 @@ namespace VfxCreator.Editor
                 {
                     case "learn":
                         var source = LoadPrefab(request.prefab);
-                        var recipe = Analyze.Prefab(source, request);
+                        var recipe = Analyze.Prefab(source, request, out var graphs);
                         WriteJson(request.recipe, recipe);
+                        result.analysis = Path.Combine(request.output, "analysis.json");
+                        WriteJson(result.analysis, new GraphAnalysis { graphs = graphs });
                         result.prefab = request.prefab;
                         result.recipe = request.recipe;
                         result.notes = recipe.notes;
@@ -154,7 +158,7 @@ namespace VfxCreator.Editor
 
         private static IEnumerator Capture(Request request, Receipt result, GameObject source)
         {
-            return Render.Capture(source, request.capture, request.output, capture =>
+            return Render.Capture(source, request.capture, request.graphEvents, request.output, capture =>
             {
                 result.prefab = request.prefab;
                 result.capture = request.output;

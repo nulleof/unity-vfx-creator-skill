@@ -1,0 +1,22 @@
+[
+  {
+    "id": "teleport",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Essentials/Prefabs/Teleport Purple VFX.prefab",
+    "title": "Purple teleport",
+    "catalogId": "blue-teal-teleport",
+    "brief": "Create a purple teleport at a stationary point. Arrival at 0 s and departure at 4 s should read as separate pulses. Give each beat a translucent ground ring, a violet central glow, fine rising or falling luminous streaks and scattered sparks. Vary the ring and vertical movement between beats and let each pulse fade before the next. Use an eight-second sample with a camera angled down 20 degrees.",
+    "duration": 8,
+    "events": [{"frame": 0, "name": "in"}, {"frame": 120, "name": "out"}]
+  },
+  {
+    "id": "aura",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Essentials/Prefabs/Aura Teal VFX.prefab",
+    "title": "Teal aura",
+    "catalogId": "teal-aura",
+    "brief": "Create a persistent teal magical aura around a character's feet. Use a thin circular ground rim, soft inner ground light, small orbiting accents and upward wisps or dots. Keep the center open, use brighter mint accents over deeper cyan, and keep the silhouette steady without repeating a bright startup flash. It should build in the first second and stay visible through a four-second sample with a camera angled down 20 degrees.",
+    "duration": 4,
+    "events": [{"frame": 0, "name": "loop"}]
+  }
+]

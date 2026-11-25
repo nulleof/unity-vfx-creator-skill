@@ -34,6 +34,38 @@ namespace VfxCreator.Editor
         public int candidateEnd = -1;
         public bool hasLimits;
         public bool passedLimits;
+        public FrameForeground[] timeline;
+    }
+
+    [Serializable]
+    internal struct FrameForeground
+    {
+        public ForegroundBounds reference;
+        public ForegroundBounds candidate;
+    }
+
+    [Serializable]
+    internal struct ForegroundBounds
+    {
+        public int area;
+        public int xMin;
+        public int yMin;
+        public int xMax;
+        public int yMax;
+
+        public void Include(int x, int y)
+        {
+            if (area++ == 0)
+            {
+                xMin = xMax = x;
+                yMin = yMax = y;
+                return;
+            }
+            xMin = Math.Min(xMin, x);
+            yMin = Math.Min(yMin, y);
+            xMax = Math.Max(xMax, x);
+            yMax = Math.Max(yMax, y);
+        }
     }
 
     internal static class Compare
@@ -48,7 +80,8 @@ namespace VfxCreator.Editor
             var overview = new Comparison
             {
                 frames = reference.frames, fps = reference.settings.fps,
-                totalPixels = (long)reference.frames * size * size
+                totalPixels = (long)reference.frames * size * size,
+                timeline = new FrameForeground[reference.frames]
             };
             Directory.CreateDirectory(request.output);
             var first = new Texture2D(size, size, TextureFormat.RGB24, false);
@@ -64,7 +97,7 @@ namespace VfxCreator.Editor
                     string file = Render.FrameName(frame);
                     var original = LoadFrame(first, Path.Combine(request.reference, file), size);
                     var rebuilt = LoadFrame(second, Path.Combine(request.candidate, file), size);
-                    int refArea = 0, newArea = 0;
+                    ref var foreground = ref overview.timeline[frame];
                     for (int row = 0; row < size; row++)
                     {
                         int start = row * size;
@@ -73,10 +106,10 @@ namespace VfxCreator.Editor
                         {
                             var a = original[start + column];
                             var b = rebuilt[start + column];
-                            bool visibleA = Render.Difference(a, reference.background) > 15;
-                            bool visibleB = Render.Difference(b, candidate.background) > 15;
-                            if (visibleA) refArea++;
-                            if (visibleB) newArea++;
+                            bool visibleA = Render.IsForeground(a, reference.background);
+                            bool visibleB = Render.IsForeground(b, candidate.background);
+                            if (visibleA) foreground.reference.Include(column, size - 1 - row);
+                            if (visibleB) foreground.candidate.Include(column, size - 1 - row);
                             if (visibleA && visibleB) intersection++;
                             int dr = Math.Abs(a.r - b.r), dg = Math.Abs(a.g - b.g), db = Math.Abs(a.b - b.b);
                             if (dr + dg + db > 0) overview.changedPixels++;
@@ -90,8 +123,8 @@ namespace VfxCreator.Editor
                             pixels[stripStart + column + size * 2] = new Color32((byte)dr, (byte)dg, (byte)db, 255);
                         }
                     }
-                    UpdateTiming(frame, refArea, ref overview.referenceOnset, ref overview.referencePeak, ref overview.referenceEnd, ref peakRef);
-                    UpdateTiming(frame, newArea, ref overview.candidateOnset, ref overview.candidatePeak, ref overview.candidateEnd, ref peakNew);
+                    UpdateTiming(frame, foreground.reference.area, ref overview.referenceOnset, ref overview.referencePeak, ref overview.referenceEnd, ref peakRef);
+                    UpdateTiming(frame, foreground.candidate.area, ref overview.candidateOnset, ref overview.candidatePeak, ref overview.candidateEnd, ref peakNew);
                     strip.SetPixels32(pixels);
                     strip.Apply();
                     File.WriteAllBytes(Path.Combine(request.output, file), strip.EncodeToPNG());
@@ -155,6 +188,7 @@ body{margin:2rem auto;max-width:1200px;padding:0 1rem;background:#141722;color:#
 header{display:flex;gap:1rem;align-items:baseline;flex-wrap:wrap} h1{font-size:1.5rem;margin:0}
 img{width:100%;display:block;background:#0b0c11} .labels{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;margin:.7rem 0}
 button,input{accent-color:#76c9ff} #frame{width:min(75%,850px)} p{line-height:1.5}
+canvas{display:block;width:100%;height:105px;background:#0b0c11;cursor:pointer} .reference{color:#72dcf1} .candidate{color:#ffaf79}
 </style>
 <header><h1>VFX comparison</h1><span>" + status + @"</span></header>
 <p>Foreground overlap " + iou + @" · Color error " + color + @" · Changed pixels " + data.changedPixels + " / " + data.totalPixels + @"<br>
@@ -164,14 +198,53 @@ Onset / peak / end frames — reference " + data.referenceOnset + " / " + data.r
 <img alt=""Reference, candidate and absolute pixel differences"" id=""preview"" src=""" + Render.FrameName(peak) + @""">
 <p><button id=""play"">Play</button> <input type=""range"" aria-label=""Frame"" id=""frame"" min=""0"" max=""" + (data.frames - 1) +
                 @""" value=""" + peak + @"""> <output id=""time""></output></p>
+<p>Foreground area in pixels · <span class=""reference"">Reference</span> · <span class=""candidate"">Candidate</span></p>
+<canvas id=""area"" width=""1000"" height=""105"" aria-label=""Foreground area by frame""></canvas>
+<p id=""bounds""></p>
 <script>
 const slider = document.querySelector('#frame'), image = document.querySelector('#preview');
 const time = document.querySelector('#time'), button = document.querySelector('#play');
+const chart = document.querySelector('#area'), plot = chart.getContext('2d'), bounds = document.querySelector('#bounds');
+const timeline = " + JsonUtility.ToJson(data) + @".timeline;
+const largest = Math.max(1, ...timeline.map(({reference, candidate}) => Math.max(reference.area, candidate.area)));
 const fps = " + data.fps + @"; let timer;
-function update() {
-  image.src = 'frame-' + slider.value.padStart(4, '0') + '.png';
-  time.value = (Number(slider.value) / fps).toFixed(2) + ' s';
+const x = frame => frame * (chart.width - 1) / Math.max(1, timeline.length - 1);
+function draw(frame) {
+  plot.clearRect(0, 0, chart.width, chart.height);
+  for (const [key, color] of [['reference', '#72dcf1'], ['candidate', '#ffaf79']]) {
+    plot.beginPath();
+    timeline.forEach((entry, i) => {
+      const y = chart.height - 1 - entry[key].area * (chart.height - 6) / largest;
+      if (i === 0) plot.moveTo(x(i), y); else plot.lineTo(x(i), y);
+    });
+    plot.strokeStyle = color;
+    plot.lineWidth = 2;
+    plot.stroke();
+  }
+  plot.beginPath();
+  plot.moveTo(x(frame), 0);
+  plot.lineTo(x(frame), chart.height);
+  plot.strokeStyle = '#ebeef6';
+  plot.lineWidth = 1;
+  plot.stroke();
 }
+function describe(box) {
+  if (!box.area) return 'no visible pixels';
+  return box.area + ' px · bounds (' + box.xMin + ', ' + box.yMin + ')–(' + box.xMax + ', ' + box.yMax + ')';
+}
+function update() {
+  const frame = Number(slider.value);
+  image.src = 'frame-' + slider.value.padStart(4, '0') + '.png';
+  time.value = (frame / fps).toFixed(2) + ' s';
+  const entry = timeline[frame];
+  bounds.textContent = 'Reference: ' + describe(entry.reference) + ' | Candidate: ' + describe(entry.candidate);
+  draw(frame);
+}
+chart.addEventListener('click', event => {
+  const rect = chart.getBoundingClientRect();
+  slider.value = Math.round((event.clientX - rect.left) / rect.width * (timeline.length - 1));
+  update();
+});
 slider.addEventListener('input', update);
 button.addEventListener('click', () => {
   if (timer) { clearInterval(timer); timer = null; button.textContent = 'Play'; return; }
