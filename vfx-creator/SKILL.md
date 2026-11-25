@@ -10,7 +10,7 @@ This folder is the whole skill. Use PowerShell 7.4+ and an installed Unity edito
 ## Create or adapt
 
 1. Read [authoring](roles/author.md) and the [recipe format](references/recipes.md). Run `Find` with the brief. Choose a template by silhouette, motion and lifetime. Borrow individual layers or synthesize the defining shapes when the catalog only matches part of the effect.
-2. Draft the action phases and their dominant shapes. Build under a draft ID and render with the intended camera and motion. Use the candidate's own frames to tune projected size, phase timing, color and accents against the brief.
+2. Draft the action phases and their dominant shapes. Build under a draft ID and render with the intended camera and motion. Use the candidate's own frames and `capture.json` timeline to tune projected size, phase timing, motion and brightness against the brief.
 3. Build the final prefab and render it. Check motion and key frames as described in [review](roles/review.md). Return the final recipe, prefab path, a preview or report, and any gameplay trigger or attachment requirements.
 
 ## Learn

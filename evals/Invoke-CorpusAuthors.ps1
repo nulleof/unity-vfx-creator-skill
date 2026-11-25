@@ -9,14 +9,16 @@ param(
     [ValidateSet('old', 'new')][string[]]$Version = @('old', 'new'),
     [string]$Model = 'gpt-6.2-sol',
     [ValidateSet('low', 'medium', 'high')][string]$Effort = 'medium',
-    [ValidateRange(1, 3)][int]$Throttle = 3
+    [ValidateRange(1, 3)][int]$Throttle = 3,
+    [switch]$MeasuredFeedback
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3
 $results = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ResultsRoot)
 $skills = @{ old = (Get-Item -LiteralPath $BaselineSkill).FullName; new = (Get-Item -LiteralPath $UpdatedSkill).FullName }
 $runner = Join-Path $PSScriptRoot 'Invoke-BlindAuthor.ps1'
-$cases = @(Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json -AsHashtable)
+$allCases = @(Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json -AsHashtable)
+$cases = $allCases
 $fingerprints = @{}
 foreach ($name in $Version) {
     $root = $skills[$name]
@@ -28,7 +30,7 @@ foreach ($name in $Version) {
 $briefs = @{}
 foreach ($entry in (Get-Content -LiteralPath $BriefManifest -Raw | ConvertFrom-Json -AsHashtable)) {
     if ($briefs.ContainsKey($entry.id) -or [string]::IsNullOrWhiteSpace($entry.brief)) { throw 'Briefs must have unique IDs and nonempty text.' }
-    $briefs[$entry.id] = $entry.brief.Trim()
+    $briefs[$entry.id] = $entry
 }
 if ($CaseId) { $cases = @($cases | Where-Object id -In ($CaseId -split ',')) }
 if (!$cases.Count) { throw 'No cases were selected.' }
@@ -41,13 +43,33 @@ $jobs = @(foreach ($case in $cases) {
     }
     $capture = Get-Content -LiteralPath $reference -Raw | ConvertFrom-Json -AsHashtable
     if (!$capture.visibleFrames -or $capture.clippedFrames) { throw "Unusable reference for '$id'." }
-    foreach ($name in $Version) {
+    $brief = $briefs[$id]
+    $sampleFrames = @()
+    $versions = $Version
+    if ($MeasuredFeedback) {
+        $samples = $brief['draftSampleFrames']
+        if ($samples -isnot [array] -or !$samples.Count -or @($samples | Where-Object {
+            ($_ -isnot [long] -and $_ -isnot [int]) -or $_ -lt 0 -or $_ -ge $capture.frames
+        }).Count) {
+            throw "Case '$id' needs an array of zero-based draftSampleFrames within the capture."
+        }
+        $sampleFrames = @($samples | Sort-Object -Unique)
+        if ($sampleFrames.Count -ne $samples.Count) { throw "Case '$id' needs distinct draftSampleFrames." }
+        if ([Array]::IndexOf($allCases, $case) % 2 -ne 0) {
+            $versions = $Version.Clone()
+            [Array]::Reverse($versions)
+        }
+    }
+    foreach ($name in $versions) {
         @{
             id = $id; name = $name; skill = $skills[$name]; fingerprint = $fingerprints[$name]; model = $Model; effort = $Effort; runner = $runner
             project = Join-Path $results "author-projects/$id/$name"
             output = Join-Path $results "runs/$id/$name"
-            brief = $briefs[$id]
+            brief = $brief.brief.Trim()
             capture = $capture.settings | ConvertTo-Json -Compress
+            measuredFeedback = $MeasuredFeedback.IsPresent
+            draftFeedback = if ($MeasuredFeedback -and $name -eq 'new') { 'Measured' } else { 'Legacy' }
+            draftSampleFrames = $sampleFrames
         }
     }
 })
@@ -62,10 +84,19 @@ $outcomes = @($jobs | ForEach-Object -Parallel {
         [void][IO.Directory]::CreateDirectory($parent)
         $slot = [IO.File]::Open((Join-Path $parent "$($run.name).lock"), 'OpenOrCreate', 'ReadWrite', 'None')
         $inputPath = Join-Path $parent "$($run.name)-inputs.json"
-        $inputs = [ordered]@{
+        $inputData = [ordered]@{
             skillSha256 = $run.fingerprint; brief = $run.brief; capture = $run.capture
             model = $run.model; effort = $run.effort
-        } | ConvertTo-Json -Compress
+        }
+        $feedbackArguments = @{}
+        if ($run.measuredFeedback) {
+            $inputData['draftFeedbackProtocol'] = 1
+            $inputData['draftFeedback'] = $run.draftFeedback
+            $inputData['draftSampleFrames'] = $run.draftSampleFrames
+            $feedbackArguments['DraftFeedback'] = $run.draftFeedback
+            $feedbackArguments['DraftSampleFrames'] = $run.draftSampleFrames
+        }
+        $inputs = $inputData | ConvertTo-Json -Compress
         if (Test-Path -LiteralPath $inputPath -PathType Leaf) {
             if ((Get-Content -LiteralPath $inputPath -Raw).Trim() -cne $inputs) {
                 throw 'The benchmark inputs changed. Use a new results directory.'
@@ -75,10 +106,10 @@ $outcomes = @($jobs | ForEach-Object -Parallel {
             & (Join-Path $run.skill 'scripts/vfx.ps1') Init -Project $run.project -Version '6000.6.8f1' | Out-Null
         }
         if (Test-Path -LiteralPath $statePath) {
-            & $run.runner Resume -Output $run.output | Out-Null
+            & $run.runner Resume -Output $run.output @feedbackArguments | Out-Null
         } else {
             & $run.runner Run -Output $run.output -Project $run.project -SkillPath $run.skill `
-                -Brief $run.brief -CaptureJson $run.capture -Model $run.model -Effort $run.effort | Out-Null
+                -Brief $run.brief -CaptureJson $run.capture -Model $run.model -Effort $run.effort @feedbackArguments | Out-Null
         }
         [pscustomobject]@{ id = $run.id; version = $run.name; ok = $true; error = '' }
     } catch {

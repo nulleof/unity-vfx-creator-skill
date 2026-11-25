@@ -1,0 +1,58 @@
+[
+  {
+    "id": "00",
+    "brief": "At a stationary center point, a tiny cream-white glint appears within a soft, dull gold halo. Thin tapered rays break the symmetry of the bright core. The round halo expands from about 26 to 42 pixels across in two frames, losing brightness as it grows. The halo cuts out by 0.100 s. A single much smaller warm gold fleck remains below and to the left. It drifts farther down, bends toward vertical, and shrinks to one pixel before disappearing. The rest of the image stays dark and empty. Keep the round halo diffuse and the tiny fleck sharply localized.\n\nSquare 256 px orthographic view, 6 world units across, level camera, no travel or arc, 30 fps, 1.2 s. Positions are pixels from the top left, bounds inclusive. Area counts visible foreground pixels. Luminance is the mean over that foreground on a 0–1 scale.\n\n| Time (s) | Area (px) | Bounds (min to max) | Centroid (x,y) | Luminance |\n|---|---:|---|---|---:|\n| 0.000 | 501 | 115,115 to 140,140 | 127.6,127.2 | 0.347 |\n| 0.033 | 1252 | 108,108 to 147,146 | 127.5,127.1 | 0.315 |\n| 0.067 | 1352 | 107,107 to 148,147 | 127.5,127.1 | 0.201 |\n| 0.100 | 7 | 120,136 to 122,138 | 121.3,137.0 | 0.592 |\n| 0.200 | 6 | 117,144 to 119,146 | 118.3,144.8 | 0.585 |\n| 0.367 | 2 | 115,158 to 115,159 | 115.0,158.5 | 0.529 |\n| 0.467 | 1 | 114,168 to 114,168 | 114.0,168.0 | 0.595 |\n| 0.500–1.200 | 0 | empty | — | — |",
+    "draftSampleFrames": [
+      0,
+      1,
+      2,
+      3,
+      6,
+      11,
+      14,
+      15
+    ]
+  },
+  {
+    "id": "01",
+    "brief": "A small mint-green and cyan puff blooms on a stationary center point. At onset three or four compact icy pale-blue highlights overlap a soft round green glow, about 17 by 16 pixels. The pale centers are brightest at about 0.067 s. The green-blue haze swells, breaks into a few uneven overlapping billows, and sags a little below the anchor. Peak coverage comes at 0.133 s. By 0.233 s the glow has thinned; by 0.267 s only a sparse scattering of tiny cyan and green flecks remains. They spread asymmetrically around and below the center as the empty space between them grows. A few motes carry the late bounds. One isolated turquoise pixel lingers near center at 0.600 s. From 0.633 s through the end the view is empty. Keep the surrounding image dark and the effect compact.\r\n\r\nSquare 256 px orthographic view, 6 world units across, camera pitch 0 degrees, travel 0 and arc height 0 world units, 30 fps, 1.2 s. Coordinates are pixels from the top left, bounds inclusive. Area counts visible foreground pixels. Luminance is the mean over that foreground on a 0–1 scale.\r\n\r\n| Time (s) | Area (px) | Bounds (min to max) | Centroid (x,y) | Luminance |\r\n|---|---:|---|---|---:|\r\n| 0.000 | 214 | 119,120 to 135,135 | 127.3,127.5 | 0.297 |\r\n| 0.067 | 343 | 116,119 to 137,137 | 126.6,128.3 | 0.330 |\r\n| 0.133 | 407 | 114,119 to 138,140 | 126.5,129.9 | 0.269 |\r\n| 0.233 | 137 | 121,123 to 143,143 | 128.1,134.9 | 0.167 |\r\n| 0.267 | 25 | 120,123 to 145,142 | 128.0,130.1 | 0.345 |\r\n| 0.400 | 9 | 119,122 to 151,147 | 128.4,129.9 | 0.316 |\r\n| 0.600 | 1 | 129,125 to 129,125 | 129.0,125.0 | 0.299 |\r\n| 0.633 | 0 | empty | — | — |",
+    "draftSampleFrames": [
+      0,
+      2,
+      4,
+      7,
+      8,
+      12,
+      18,
+      19
+    ]
+  },
+  {
+    "id": "02",
+    "brief": "A small luminous lime-yellow hoop travels left to right at mid-height. Its clean circular outer edge stays about 14 pixels in diameter (0.44 world units) with a dark central opening roughly 9–10 pixels across. The rim is brighter yellow-green along some sections and darker olive on others. From the start the hoop is already present, centered near (64,128). Its center moves at about 114 pixels per second along a straight level line, crosses the image center at about 0.56 s and settles near (192,128) at about 1.13 s. The hoop stays face-on and upright throughout. Its motion produces a few very thin horizontal yellow-green dashes on separate rows, with dark breaks between them. Most linger behind the hoop; occasional strokes cross the opening or briefly protrude ahead. They vary in length and flicker independently. The stroke wake makes the occupied span much wider than the hoop during travel without adding appreciable height. As the hoop stops, the stray dashes disappear and the bright hollow circle remains visible through 1.50 s.\r\n\r\nSquare 256 px orthographic view, 8 world units across, camera pitch 0 degrees, travel 4 and arc height 0 world units, 30 fps, 1.5 s. Coordinates are pixels from the top left, bounds inclusive. Area counts visible foreground pixels. Luminance is the mean over that foreground on a 0–1 scale.\r\n\r\n| Time (s) | Area (px) | Bounds (min to max) | Centroid (x,y) | Luminance |\r\n|---|---:|---|---|---:|\r\n| 0.000 | 76 | 57,121 to 70,134 | 63.5,127.5 | 0.744 |\r\n| 0.200 | 155 | 56,121 to 103,134 | 85.3,127.6 | 0.523 |\r\n| 0.467 | 157 | 96,121 to 133,134 | 115.9,126.8 | 0.519 |\r\n| 0.500 | 145 | 96,121 to 128,134 | 118.7,126.9 | 0.520 |\r\n| 0.800 | 133 | 125,121 to 164,134 | 153.7,127.9 | 0.514 |\r\n| 1.000 | 136 | 162,121 to 193,134 | 176.4,128.2 | 0.581 |\r\n| 1.133 | 93 | 181,121 to 198,134 | 190.7,127.3 | 0.687 |\r\n| 1.500 | 88 | 185,121 to 198,134 | 191.5,127.5 | 0.658 |",
+    "draftSampleFrames": [
+      0,
+      6,
+      14,
+      15,
+      24,
+      30,
+      34,
+      45
+    ]
+  },
+  {
+    "id": "03",
+    "brief": "At a stationary point on the ground, a broad horizontal swirl gathers from scattered warm ivory and tarnished-gold specks. Frame zero is empty. At 0.033–0.167 s sparse pinpricks stretch into short brush-like streaks around a wide, mostly empty oval. Around 0.2 s a low, translucent bronze-gray pool fills the middle. The smooth overlapping pool shapes have softly graded centers and a few distinct contour bands. Flecks gather into bright grainy curved lines around the edge. The widest scattered particles lie well beyond the central pool. At 0.6 s coverage peaks. As the initial long outward streaks dissipate, several thin, broken, slanting necklaces of ivory dust sweep across the front of the pool and curl upward around the ends, prominently at the right. Keep open space above the shallow pool between the high, tapering strands. The luminous edge thickens on alternating sides as successive bands circle. The central ground glow remains dim enough for the moving granular ridges to read clearly. From 1.5 through 3 s the swirl sustains a changing oval footprint and remains active at the end. Typical steady coverage is about 7,100–7,750 pixels; individual lifted sparks determine the topmost bounds.\r\n\r\nSquare 256 px orthographic view, 10 world units across, camera pitch 20 degrees, travel 0 and arc height 0 world units, 30 fps, 3 s. Coordinates are pixels from the top left, bounds inclusive. Area counts visible foreground pixels. Luminance is the mean over that foreground on a 0–1 scale.\r\n\r\n| Time (s) | Area (px) | Bounds (min to max) | Centroid (x,y) | Luminance |\r\n|---|---:|---|---|---:|\r\n| 0.000 | 0 | empty | — | — |\r\n| 0.033 | 39 | 24,77 to 193,150 | 105.7,120.9 | 0.118 |\r\n| 0.167 | 936 | 12,69 to 236,151 | 110.3,117.0 | 0.252 |\r\n| 0.267 | 5901 | 12,69 to 236,151 | 123.6,122.6 | 0.191 |\r\n| 0.600 | 8034 | 13,70 to 236,153 | 123.9,121.6 | 0.299 |\r\n| 1.500 | 7102 | 51,75 to 203,151 | 129.2,122.8 | 0.296 |\r\n| 2.000 | 7284 | 54,56 to 201,156 | 128.5,121.9 | 0.302 |\r\n| 3.000 | 7582 | 55,58 to 199,151 | 126.4,119.7 | 0.289 |",
+    "draftSampleFrames": [
+      0,
+      1,
+      5,
+      8,
+      18,
+      45,
+      60,
+      90
+    ]
+  }
+]

@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)][string]$ResultsRoot,
     [string]$Manifest = (Join-Path $PSScriptRoot 'corpus-holdouts.json'),
     [string]$Project,
-    [string[]]$CaseId
+    [string[]]$CaseId,
+    [switch]$Calibration
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3
@@ -17,6 +18,36 @@ if (!$cases.Count) { throw 'No cases were selected.' }
 
 function Read-Json([string]$Path) {
     if (Test-Path -LiteralPath $Path -PathType Leaf) { Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable }
+}
+
+$assignments = @{}
+if ($Calibration) {
+    $assignmentPath = Join-Path $results 'calibration-labels.json'
+    $assignments = Read-Json $assignmentPath
+    if (!$assignments -and $Stage -eq 'Compare') {
+        $ids = @($allCases | ForEach-Object id | Get-Random -Shuffle)
+        $assignments = @{}
+        for ($i = 0; $i -lt $ids.Count; $i++) {
+            $assignments[$ids[$i]] = if ($i % 2) { 'new' } else { 'old' }
+        }
+        [void][IO.Directory]::CreateDirectory($results)
+        $temporary = "$assignmentPath.$([guid]::NewGuid().ToString('N')).tmp"
+        try {
+            $assignments | ConvertTo-Json | Set-Content -LiteralPath $temporary
+            [IO.File]::Move($temporary, $assignmentPath)
+        } catch [IO.IOException] {
+            $assignments = Read-Json $assignmentPath
+            if (!$assignments) { throw }
+        } finally {
+            [IO.File]::Delete($temporary)
+        }
+    }
+    if (!$assignments) { throw 'Run Calibration Compare first to assign the review labels.' }
+    foreach ($case in $allCases) {
+        if ($assignments[$case.id] -cnotin @('old', 'new') -or !$case['calibration']) {
+            throw "Calibration manifest or label assignment is missing data for '$($case.id)'."
+        }
+    }
 }
 
 function Get-Median([double[]]$Values) {
@@ -36,18 +67,66 @@ function Get-CaptureStatus($Capture) {
 
 function Get-RunResources($Run) {
     if (!$Run) { return $null }
-    $attempts = @($Run['cliAttempts'] | Where-Object { $_ })
+    $phases = @($Run['draft'], $Run['final'] | Where-Object { $_ })
+    $external = @($phases | ForEach-Object { $_['author'] } | Where-Object { $_ -and $_['mode'] -eq 'external' })
+    $attempts = @($Run['cliAttempts'] | Where-Object { $_ }) + $external
     $usage = @($attempts | ForEach-Object { $_['usage'] } | Where-Object { $_ })
     $tokens = [ordered]@{}
     foreach ($key in @('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_output_tokens')) {
         $values = @($usage | ForEach-Object { $_[$key] } | Where-Object { $null -ne $_ })
         $tokens[$key] = if ($values.Count) { ($values | Measure-Object -Sum).Sum }
     }
+    $buildSeconds = @($phases | ForEach-Object { $_['buildSeconds'] } | Where-Object { $null -ne $_ })
+    $waitSeconds = @($phases | ForEach-Object { $_['unityWaitSeconds'] } | Where-Object { $null -ne $_ })
     [ordered]@{
         wallSeconds = $Run['elapsedSeconds']
         authorSeconds = if ($attempts.Count) { ($attempts | ForEach-Object { $_.seconds } | Measure-Object -Sum).Sum }
+        buildSeconds = if ($buildSeconds.Count) { ($buildSeconds | Measure-Object -Sum).Sum }
+        unityWaitSeconds = if ($waitSeconds.Count) { ($waitSeconds | Measure-Object -Sum).Sum }
+        externalTurns = $external.Count
         measuredTurns = $usage.Count
         tokens = $tokens
+    }
+}
+
+function Get-CalibrationError($Comparison, $Case, [int]$Size) {
+    $timeline = $Comparison.timeline
+    switch ($Case.calibration.metric) {
+        'peakArea' {
+            $frame = $Comparison.referencePeak
+            if ($frame -lt 0) { throw "Reference '$($Case.id)' has no peak." }
+            return [Math]::Abs($timeline[$frame].candidate.area - $timeline[$frame].reference.area)
+        }
+        'trajectory' {
+            $frames = @($Case.calibration.times | ForEach-Object { [int][Math]::Round($_ * $Comparison.fps) })
+            if (!$frames.Count) { throw "Reference '$($Case.id)' has no trajectory samples." }
+            $squaredError = 0.0
+            foreach ($frame in $frames) {
+                if ($frame -lt 0 -or $frame -ge $timeline.Count -or !$timeline[$frame].reference.area) {
+                    throw "Reference '$($Case.id)' has no foreground for trajectory sample $frame."
+                }
+                $reference = $timeline[$frame].reference
+                $candidate = $timeline[$frame].candidate
+                if (!$reference.Contains('centerX') -or !$candidate.Contains('centerX')) {
+                    throw "Calibration trajectory needs a comparison with centroid data for '$($Case.id)'."
+                }
+                if ($candidate.area) {
+                    $dx = $candidate.centerX - $reference.centerX
+                    $dy = $candidate.centerY - $reference.centerY
+                    $squaredError += $dx * $dx + $dy * $dy
+                } else {
+                    $squaredError += 2.0 * $Size * $Size
+                }
+            }
+            return [Math]::Sqrt($squaredError / $frames.Count)
+        }
+        'steadyArea' {
+            $reference = Get-Timing $Comparison $Case reference
+            $candidate = Get-Timing $Comparison $Case candidate
+            if (!$reference['steadyVisible']) { throw "Reference '$($Case.id)' has no visible steady phase." }
+            return [Math]::Abs($candidate.steadyArea - $reference.steadyArea)
+        }
+        default { throw "Unknown calibration metric for '$($Case.id)'." }
     }
 }
 
@@ -90,9 +169,11 @@ function Get-Timing($Comparison, $Case, [string]$Side) {
 $rows = @(foreach ($case in $cases) {
     $id = $case.id
     $caseIndex = [Array]::IndexOf($allCases, $case)
-    $versions = if ($caseIndex % 2 -eq 0) { [ordered]@{ A = 'old'; B = 'new' } } else { [ordered]@{ A = 'new'; B = 'old' } }
+    $oldAtA = if ($Calibration) { $assignments[$id] -eq 'old' } else { $caseIndex % 2 -eq 0 }
+    $versions = if ($oldAtA) { [ordered]@{ A = 'old'; B = 'new' } } else { [ordered]@{ A = 'new'; B = 'old' } }
     $reference = Join-Path $results "references/$id"
-    $refStatus = Get-CaptureStatus (Read-Json (Join-Path $reference 'capture.json'))
+    $refManifest = Read-Json (Join-Path $reference 'capture.json')
+    $refStatus = Get-CaptureStatus $refManifest
     $captures = @{}
     foreach ($label in $versions.Keys) {
         $version = $versions[$label]
@@ -102,8 +183,10 @@ $rows = @(foreach ($case in $cases) {
         $captures[$label] = [ordered]@{ directory = $directory; status = (Get-CaptureStatus $manifestData); run = $run }
     }
     $reviewRoot = Join-Path $results "review/$id"
+    $reviewPacket = if ($Calibration) { Join-Path $results "blind-review/$id" } else { $reviewRoot }
     $valid = $refStatus -eq 'valid' -and $captures.A.status -eq 'valid' -and $captures.B.status -eq 'valid'
     $metrics = @{}
+    $comparison = $null
     foreach ($label in $versions.Keys) {
         if (!$valid) { continue }
         $comparisonRoot = Join-Path $reviewRoot $label
@@ -124,6 +207,9 @@ $rows = @(foreach ($case in $cases) {
                 referenceTiming = Get-Timing $comparison $case 'reference'
                 candidateTiming = Get-Timing $comparison $case 'candidate'
             }
+            if ($Calibration) {
+                $metrics[$versions[$label]].calibrationError = Get-CalibrationError $comparison $case $refManifest.settings.size
+            }
         }
     }
     if ($Stage -eq 'Compare' -and $metrics.Count -eq 2) {
@@ -131,19 +217,22 @@ $rows = @(foreach ($case in $cases) {
             [int][Math]::Round($_ * ($comparison.frames - 1))
         })
         $reviewFrames += @($metrics.old.referenceTiming.peak, $metrics.old.candidateTiming.peak, $metrics.new.candidateTiming.peak)
+        if ($Calibration -and $case.calibration['times']) {
+            $reviewFrames += @($case.calibration.times | ForEach-Object { [int][Math]::Round($_ * $comparison.fps) })
+        }
         $reviewFrames = @($reviewFrames | Where-Object { $_ -ge 0 } | Sort-Object -Unique)
         & (Join-Path $PSScriptRoot 'New-CorpusContactSheet.ps1') `
             -Capture @($reference, $captures.A.directory, $captures.B.directory) -Label @('Reference', 'A', 'B') `
-            -Frame $reviewFrames -Output (Join-Path $reviewRoot 'contact-sheet.png') | Out-Null
+            -Frame $reviewFrames -Output (Join-Path $reviewPacket 'contact-sheet.png') | Out-Null
     }
-    $review = Read-Json (Join-Path $reviewRoot 'verdict.json')
+    $review = Read-Json (Join-Path $reviewPacket 'verdict.json')
     if ($review -and $review['preference'] -cnotin @('A', 'B', 'tie')) { throw "Invalid visual preference for '$id'." }
     $vote = if ($review) { $review['preference'] }
     $preference = if ($vote -eq 'tie') { 'tie' } elseif ($vote) { $versions[$vote] }
     $scored = $valid -and $metrics.Count -eq 2
     $oldLabel = if ($versions.A -eq 'old') { 'A' } else { 'B' }
     $newLabel = if ($oldLabel -eq 'A') { 'B' } else { 'A' }
-    [ordered]@{
+    $row = [ordered]@{
         id = $id
         reference = $refStatus
         oldCapture = $captures[$oldLabel].status
@@ -157,6 +246,13 @@ $rows = @(foreach ($case in $cases) {
         reviewNotes = if ($review) { $review['notes'] }
         resources = [ordered]@{ old = Get-RunResources $captures[$oldLabel].run; new = Get-RunResources $captures[$newLabel].run }
     }
+    if ($Calibration) {
+        $row.rehearsal = [bool]$case['rehearsal']
+        $row.calibrationMetric = $case.calibration.metric
+        $row.calibrationGain = if ($scored) { $metrics.old.calibrationError - $metrics.new.calibrationError }
+        $row.calibrationWin = $scored -and $preference -eq 'new' -and $row.calibrationGain -gt 0
+    }
+    $row
 })
 $scoredRows = @($rows | Where-Object { $_.scored })
 $reviewed = @($scoredRows | Where-Object { $_.preference })
@@ -167,11 +263,16 @@ $totalResources = [ordered]@{}
 foreach ($version in @('old', 'new')) {
     $runs = @($rows | ForEach-Object { $_.resources[$version] } | Where-Object { $_ })
     $totals = [ordered]@{ measuredTurns = ($runs | ForEach-Object measuredTurns | Measure-Object -Sum).Sum }
+    $totals.externalTurns = ($runs | ForEach-Object externalTurns | Measure-Object -Sum).Sum
     foreach ($key in @('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_output_tokens')) {
         $values = @($runs | ForEach-Object { $_.tokens[$key] } | Where-Object { $null -ne $_ })
         $totals[$key] = if ($values.Count) { ($values | Measure-Object -Sum).Sum }
     }
     $totals.medianAuthorSeconds = Get-Median @($runs | ForEach-Object authorSeconds | Where-Object { $null -ne $_ })
+    foreach ($key in @('authorSeconds', 'buildSeconds', 'unityWaitSeconds')) {
+        $values = @($runs | ForEach-Object { $_[$key] } | Where-Object { $null -ne $_ })
+        $totals[$key] = if ($values.Count) { ($values | Measure-Object -Sum).Sum }
+    }
     $totalResources[$version] = $totals
 }
 $summary = [ordered]@{
@@ -186,6 +287,17 @@ $summary = [ordered]@{
     cases = $rows
 }
 $summary.passed = $summary.complete -and $newWins -ge 4 -and $iouGain -ge 0.05 -and $colorChange -le 0.02
+$summaryFile = 'benchmark.json'
+if ($Calibration) {
+    $holdouts = @($allCases | Where-Object { !$_['rehearsal'] })
+    $holdoutRows = @($rows | Where-Object { !$_.rehearsal })
+    $summary.complete = $holdouts.Count -eq 3 -and @($holdoutRows | Where-Object { $_.scored -and $_.preference }).Count -eq 3
+    $summary.holdoutComparable = @($holdoutRows | Where-Object scored).Count
+    $summary.holdoutReviewed = @($holdoutRows | Where-Object { $_.scored -and $_.preference }).Count
+    $summary.calibrationWins = @($holdoutRows | Where-Object calibrationWin).Count
+    $summary.passed = $summary.complete -and $summary.calibrationWins -ge 2
+    $summaryFile = 'calibration.json'
+}
 [void][IO.Directory]::CreateDirectory($results)
-$summary | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $results 'benchmark.json')
+$summary | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $results $summaryFile)
 [pscustomobject]$summary

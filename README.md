@@ -99,6 +99,21 @@ Freeze the whole baseline skill before updating it. The author runner installs a
 
 After both candidates are exported, give the reviewer only the anonymous contact sheets and, when needed, the side-by-side sequences under `review/<case>/`. Contact sheets use `System.Drawing.Common` on Windows. Save the reviewer's preference as `review/<case>/verdict.json` with `preference` set to `A`, `B` or `tie` and optional `notes`. Run `Measure-CorpusBenchmark.ps1` again with `-Stage Summarize` to record the verdicts, paired metrics, capture problems and measured resources in `benchmark.json`. The benchmark passes with six comparable, reviewed pairs, at least four visual preferences for the updated skill, a median foreground IoU gain of at least 0.05 and a median color error increase of at most 0.02.
 
+### Frame calibration pilot
+
+[`evals/calibration-cases.json`](evals/calibration-cases.json) defines one rehearsal and three holdouts. Capture the cases with `Invoke-CorpusCapture.ps1 -Manifest ./evals/calibration-cases.json` and use a disposable reference stand per package. Check each capture for valid materials, visibility and framing before using the [measured briefs](evals/calibration-briefs.json). The brief manifest supplies `id`, `brief` and zero-based `draftSampleFrames` for each case. Include the reference's observed dimensions, trajectory or timing at those sample frames when adding cases.
+
+```powershell
+$manifest = './evals/calibration-cases.json'
+$results = '.vfx-work/calibration-pilot'
+./evals/Invoke-CorpusAuthors.ps1 -ResultsRoot $results -Manifest $manifest `
+    -BriefManifest ./evals/calibration-briefs.json -BaselineSkill '<vfx-creator-at-6a6716e>' -MeasuredFeedback
+./evals/Measure-CorpusBenchmark.ps1 -Stage Compare -ResultsRoot $results -Manifest $manifest `
+    -Project '<comparison-project>' -Calibration
+```
+
+Start with `-CaseId 00` for a rehearsal. The measured arm receives the draft's measurements at the brief's sample frames and up to eight draft images. Review each pair from `blind-review/<case>/contact-sheet.png` and save `verdict.json` alongside it. Summarize with `-Calibration` to write `calibration.json`. A pilot pass requires three comparable and reviewed holdouts, with the updated skill both preferred visually and closer on the preset primary metric in at least two. Area errors are in pixels of foreground coverage. Trajectory error is centroid RMS distance in pixels, with the frame diagonal as the penalty for missing candidate foreground at a sampled time. The report tracks author, build and Unity queue times separately.
+
 ## Contribute recipes
 
 Add recipe JSON files to `vfx-creator/catalog/`. Use descriptive IDs, titles, aliases and layer names, and keep recipes free of copied source assets. Store source packages, imported assets, reference frames, Unity caches and generated evaluation output in ignored working directories such as `.vfx-work/`.

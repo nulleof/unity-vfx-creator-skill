@@ -9,6 +9,8 @@ param(
     [ValidateRange(32, 2048)][int]$Size = 256,
     [string]$Model,
     [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra')][string]$Effort,
+    [ValidateSet('Legacy', 'Measured')][string]$DraftFeedback = 'Legacy',
+    [ValidateRange(0, 2400)][int[]]$DraftSampleFrames = @(),
     [string]$AuthorUsageJson,
     [ValidateRange(0, [double]::MaxValue)][double]$AuthorElapsedSeconds
 )
@@ -21,6 +23,12 @@ $stateFile = Join-Path $destination 'run.json'
 $captureBounds = @{ size = 32, 2048; fps = 1, 120; duration = 0.05, 20; framing = 0.1, 100
     cameraPitch = -89, 89; travel = 0, 100; arc = 0, 100; seed = 1, 2147483647 }
 $hasAuthorElapsedSeconds = $PSBoundParameters.ContainsKey('AuthorElapsedSeconds')
+$hasDraftFeedback = $PSBoundParameters.ContainsKey('DraftFeedback')
+$hasDraftSampleFrames = $PSBoundParameters.ContainsKey('DraftSampleFrames')
+$feedbackProtocol = 1
+$DraftFeedback = if ($DraftFeedback -eq 'Measured') { 'Measured' } else { 'Legacy' }
+$sampleFrames = @($DraftSampleFrames | Sort-Object -Unique)
+if ($sampleFrames.Count -ne $DraftSampleFrames.Count) { throw '-DraftSampleFrames must contain distinct indices.' }
 
 function Save-Run($Run) {
     $temporary = "$stateFile.tmp"
@@ -58,6 +66,13 @@ function Prepare-Run {
             throw "Invalid capture value for '$key': $value. See the pipeline parameter range."
         }
         $capture[$key] = $value
+    }
+    if ($DraftFeedback -eq 'Measured' -and !$sampleFrames.Count) {
+        throw 'Measured draft feedback requires -DraftSampleFrames.'
+    }
+    $lastFrame = [Math]::Ceiling([single]([single]$capture.duration * $capture.fps))
+    if ($sampleFrames.Count -and $sampleFrames[-1] -gt $lastFrame) {
+        throw "Draft sample frames must be within the capture range (0 to $lastFrame)."
     }
 
     $sourceSkill = (Get-Item -LiteralPath $SkillPath).FullName
@@ -123,6 +138,7 @@ $(Get-Content -LiteralPath $contextFile -Raw)
     $prepared = [ordered]@{
         status = 'prepared'; startedAt = [DateTimeOffset]::UtcNow.ToString('o'); project = $projectPath
         pipeline = $pipeline; captureSettings = $capture
+        draftFeedback = $DraftFeedback; draftFeedbackProtocol = $feedbackProtocol; draftSampleFrames = $sampleFrames
         requestedModel = $Model; requestedEffort = $Effort; authorDirectory = $author; draftPrompt = $draftPrompt
         draftRecipe = (Join-Path $author 'draft.json'); finalRecipe = (Join-Path $author 'final.json')
         revisionPrompt = (Join-Path $author 'revision-prompt.md'); publishedRecipe = $null; prefab = $null; capture = $null
@@ -132,12 +148,26 @@ $(Get-Content -LiteralPath $contextFile -Raw)
     return $prepared
 }
 
+function Read-Run {
+    $saved = Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json -AsHashtable
+    $savedMode = $saved['draftFeedback'] ?? 'Legacy'
+    $savedFrames = $saved['draftSampleFrames'] ?? @()
+    if (($savedMode -eq 'Measured' -and $saved['draftFeedbackProtocol'] -ne $feedbackProtocol) -or
+        ($hasDraftFeedback -and $savedMode -ne $DraftFeedback) -or
+        ($hasDraftSampleFrames -and ($savedFrames -join ',') -ne ($sampleFrames -join ','))) {
+        throw 'The draft feedback protocol or sample frames changed. Use a new output directory.'
+    }
+    return $saved
+}
+
 function Invoke-CodexAuthor($Run, [string]$Phase, [string]$Prompt, [string]$Recipe, [string[]]$Frames) {
     $codex = Get-Command codex -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (!$codex) { throw 'Codex CLI is unavailable. Use the prepared author directory and resume with Draft or Finalize.' }
 
+    $attemptNumber = 1 + @($Run.cliAttempts | Where-Object phase -eq $Phase).Count
+    $attemptName = if ($attemptNumber -eq 1) { $Phase } else { "$Phase-$attemptNumber" }
     $schema = Join-Path $Run.authorDirectory 'response-schema.json'
-    $reply = Join-Path $Run.authorDirectory "$Phase-reply.json"
+    $reply = Join-Path $Run.authorDirectory "$attemptName-reply.json"
     '{"type":"object","properties":{"recipeJson":{"type":"string"}},"required":["recipeJson"],"additionalProperties":false}' |
         Set-Content -LiteralPath $schema
     $arguments = @('exec', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules',
@@ -152,8 +182,8 @@ function Invoke-CodexAuthor($Run, [string]$Phase, [string]$Prompt, [string]$Reci
     $arguments += '-'
     $promptText = "The harness writes the requested JSON file. Return the complete recipe object serialized as the recipeJson string in the structured response, with no Markdown fences.`n`n" +
         (Get-Content -LiteralPath $Prompt -Raw)
-    $eventsFile = Join-Path $destination "$Phase-events.jsonl"
-    $errorsFile = Join-Path $destination "$Phase-codex.log"
+    $eventsFile = Join-Path $destination "$attemptName-events.jsonl"
+    $errorsFile = Join-Path $destination "$attemptName-codex.log"
     $PSNativeCommandUseErrorActionPreference = $false
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $promptText | & $codex.Source @arguments 2> $errorsFile | Set-Content -LiteralPath $eventsFile
@@ -212,10 +242,12 @@ function Build-Phase($Run, [string]$Name, [string]$AuthorRecipe, $AuthorMetadata
     $capture = Join-Path $phase 'capture'
     Copy-Item -LiteralPath $AuthorRecipe -Destination $recipe -Force
     $id = "blind-$Name-" + [guid]::NewGuid().ToString('N').Substring(0, 12)
-    $lock = Wait-VfxUnitySlot
-    $timer = [Diagnostics.Stopwatch]::StartNew()
     $settings = $Run.captureSettings
     $manifestPath = Join-Path $capture 'capture.json'
+    $queueTimer = [Diagnostics.Stopwatch]::StartNew()
+    $lock = Wait-VfxUnitySlot
+    $queueTimer.Stop()
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     try {
         $receipt = & $Run.pipeline Build -Project $Run.project -Recipe $recipe -Id $id -Work (Join-Path $destination 'unity') `
             -Output $capture -RenderAfterBuild @settings
@@ -237,8 +269,67 @@ function Build-Phase($Run, [string]$Name, [string]$AuthorRecipe, $AuthorMetadata
     }
     return [ordered]@{
         recipe = $recipe; prefab = $prefab; capture = $capture; captureManifest = $manifestPath
-        buildSeconds = $timer.Elapsed.TotalSeconds; author = $AuthorMetadata; receipt = $receipt
+        buildSeconds = $timer.Elapsed.TotalSeconds; unityWaitSeconds = $queueTimer.Elapsed.TotalSeconds
+        author = $AuthorMetadata; receipt = $receipt
     }
+}
+
+function Get-MeasuredPreviewIndices([int[]]$Samples, $Timeline) {
+    $limit = [Math]::Min(8, $Timeline.Count)
+    if ($Samples.Count -ge $limit) {
+        if ($limit -eq 1) { return $Samples[0] }
+        return 0..($limit - 1) | ForEach-Object {
+            $Samples[[int][Math]::Round($_ * ($Samples.Count - 1) / ($limit - 1))]
+        }
+    }
+
+    $indices = [System.Collections.Generic.List[int]]::new()
+    $indices.AddRange($Samples)
+    $peak = 0
+    for ($frame = 1; $frame -lt $Timeline.Count; $frame++) {
+        if ($Timeline[$frame].area -gt $Timeline[$peak].area) { $peak = $frame }
+    }
+    foreach ($frame in @($peak, 0, ($Timeline.Count - 1))) {
+        if ($indices.Count -lt $limit -and !$indices.Contains($frame)) { $indices.Add($frame) }
+    }
+    # Fill remaining preview slots with frames furthest from any selected frame.
+    while ($indices.Count -lt $limit) {
+        $bestFrame = 0
+        $maxDistance = 0
+        for ($frame = 0; $frame -lt $Timeline.Count; $frame++) {
+            $distance = $Timeline.Count
+            foreach ($index in $indices) { $distance = [Math]::Min($distance, [Math]::Abs($index - $frame)) }
+            if ($distance -gt $maxDistance) { $bestFrame = $frame; $maxDistance = $distance }
+        }
+        $indices.Add($bestFrame)
+    }
+    return $indices
+}
+
+function Format-DraftMeasurements([int[]]$Samples, $Manifest) {
+    $culture = [Globalization.CultureInfo]::InvariantCulture
+    $rows = foreach ($index in $Samples) {
+        $frame = $Manifest.timeline[$index]
+        $time = ($index / $Manifest.settings.fps).ToString('0.000', $culture)
+        $bounds = $center = $luminance = '—'
+        if ($frame.area -gt 0) {
+            $bounds = "$($frame.xMin), $($frame.yMin), $($frame.xMax), $($frame.yMax)"
+            $center = [string]::Format($culture, '{0:0.0}, {1:0.0}', $frame.centerX, $frame.centerY)
+            $luminance = $frame.meanLuminance.ToString('0.0000', $culture)
+        }
+        "| $index | $time | $($frame.area) | $bounds | $center | $luminance | $($frame.clipped) |"
+    }
+    return @"
+
+
+## Draft measurements
+
+These rows measure your own draft at the brief's sample beats. Area counts foreground pixels. Bounds are inclusive xMin, yMin, xMax, yMax and centers are x, y, in pixels from the top left of the $($Manifest.settings.size) × $($Manifest.settings.size) frame. Mean foreground luminance uses normalized Rec. 709 weights (0–1). Clipped means foreground reaches a frame edge.
+
+| Frame | Time (s) | Area (pixels) | Bounds | Center | Mean luminance | Clipped |
+| --- | --- | --- | --- | --- | --- | --- |
+$($rows -join "`n")
+"@
 }
 
 function Prepare-Revision($Run) {
@@ -246,10 +337,22 @@ function Prepare-Revision($Run) {
     $manifest = Get-Content -LiteralPath $draft.captureManifest -Raw | ConvertFrom-Json -AsHashtable
     $files = @(Get-ChildItem -LiteralPath $draft.capture -File -Filter 'frame-*.png' | Sort-Object Name)
     if (!$files.Count) { throw 'The draft capture contains no preview frames.' }
+    $measurements = ''
+    if ($Run['draftFeedback'] -eq 'Measured') {
+        $timeline = $manifest['timeline']
+        $samples = $Run.draftSampleFrames
+        if (!$timeline -or $timeline.Count -ne $manifest.frames -or $files.Count -ne $manifest.frames) {
+            throw 'Measured draft feedback requires a complete draft capture with one timeline entry per frame.'
+        }
+        if ($samples[-1] -ge $timeline.Count) { throw 'A draft sample frame is outside the rendered capture.' }
+        $indices = Get-MeasuredPreviewIndices $samples $timeline
+        $measurements = Format-DraftMeasurements $samples $manifest
+    } else {
+        $indices = (0..10 | ForEach-Object { [int][Math]::Round($_ * ($files.Count - 1) / 10) }) +
+            (0.1, 0.25, 0.5, 0.75 | ForEach-Object { [int][Math]::Min($files.Count - 1, [Math]::Round($_ * $manifest.settings.fps)) })
+    }
     $preview = Join-Path $Run.authorDirectory 'draft-preview'
     [void][IO.Directory]::CreateDirectory($preview)
-    $indices = (0..10 | ForEach-Object { [int][Math]::Round($_ * ($files.Count - 1) / 10) }) +
-        (0.1, 0.25, 0.5, 0.75 | ForEach-Object { [int][Math]::Min($files.Count - 1, [Math]::Round($_ * $manifest.settings.fps)) })
     $attachments = foreach ($index in ($indices | Sort-Object -Unique)) {
         $name = $files[$index].Name
         $target = Join-Path $preview $name
@@ -260,7 +363,7 @@ function Prepare-Revision($Run) {
     $previewSummary = "Visible frames $($manifest.visibleFrames) of $($manifest.frames), clipped frames $($manifest.clippedFrames), peak particles $($manifest.peakParticles)."
     $contextFile = Join-Path $Run.authorDirectory 'context.md'
     @"
-Inspect the draft capture in draft-preview or the attached frames. This is your draft preview in chronological order ($($frameNames -join ', ')). $previewSummary
+Inspect the draft capture in draft-preview or the attached frames. This is your draft preview in chronological order ($($frameNames -join ', ')). $previewSummary$measurements
 
 Refine the recipe based on how the draft matches the brief, including silhouette, motion, layer timing and fade. Submit the complete version 1 recipe in final.json using built-in procedural textures. The harness will export and render your final prefab. Use only this supplied context and work directory.
 
@@ -281,7 +384,7 @@ try { $executionSlot = [IO.File]::Open("$destination.execution.lock", 'OpenOrCre
 catch [IO.IOException] { throw "An authoring stage is already running for '$destination'." }
 try {
     $prepare = $Stage -in @('Run', 'Prepare')
-    $run = if ($prepare) { Prepare-Run } else { Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json -AsHashtable }
+    $run = if ($prepare) { Prepare-Run } else { Read-Run }
     $automated = $Stage -in @('Run', 'Resume')
     if ($Stage -eq 'Draft' -or ($automated -and $run.status -eq 'prepared')) {
         if ($run.status -ne 'prepared') { throw "Draft requires a prepared run. Current status is '$($run.status)'." }

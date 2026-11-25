@@ -45,6 +45,56 @@ namespace VfxCreator.Editor
         public int peakTrailPoints;
         public GraphEvent[] graphEvents;
         public string[] notes;
+        public ForegroundStats[] timeline;
+    }
+
+    [Serializable]
+    internal struct ForegroundStats
+    {
+        public int area;
+        public int xMin;
+        public int yMin;
+        public int xMax;
+        public int yMax;
+        public float centerX;
+        public float centerY;
+        public float meanLuminance;
+        public bool clipped;
+    }
+
+    internal struct ForegroundAccumulator
+    {
+        private ForegroundStats stats;
+        private long sumX;
+        private long sumY;
+        private long sumLuma;
+
+        internal void Include(int x, int y, Color32 pixel)
+        {
+            sumX += x;
+            sumY += y;
+            sumLuma += 2126 * pixel.r + 7152 * pixel.g + 722 * pixel.b;
+            if (stats.area++ == 0)
+            {
+                stats.xMin = stats.xMax = x;
+                stats.yMin = stats.yMax = y;
+                return;
+            }
+            stats.xMin = Math.Min(stats.xMin, x);
+            stats.yMin = Math.Min(stats.yMin, y);
+            stats.xMax = Math.Max(stats.xMax, x);
+            stats.yMax = Math.Max(stats.yMax, y);
+        }
+
+        internal ForegroundStats Complete(int size)
+        {
+            if (stats.area == 0) return stats;
+            stats.centerX = (float)((double)sumX / stats.area);
+            stats.centerY = (float)((double)sumY / stats.area);
+            stats.meanLuminance = (float)(sumLuma / (2550000.0 * stats.area));
+            stats.clipped = stats.xMin == 0 || stats.yMin == 0 || stats.xMax == size - 1 || stats.yMax == size - 1;
+            return stats;
+        }
     }
 
     internal static class Render
@@ -93,6 +143,7 @@ namespace VfxCreator.Editor
                 settings = settings, frames = Mathf.CeilToInt(settings.duration * settings.fps) + 1,
                 graphEvents = schedule ?? Array.Empty<GraphEvent>()
             };
+            manifest.timeline = new ForegroundStats[manifest.frames];
             try
             {
                 ReadFrame(camera, target, image);
@@ -187,9 +238,10 @@ namespace VfxCreator.Editor
                     yield return null;
                     ReadFrame(camera, target, image);
                     foreach (var graph in graphs) highestAlive = Math.Max(highestAlive, graph.aliveParticleCount);
-                    var pixels = image.GetPixels32();
-                    if (pixels.Any(pixel => IsForeground(pixel, manifest.background))) manifest.visibleFrames++;
-                    if (TouchesEdge(pixels, settings.size, manifest.background)) manifest.clippedFrames++;
+                    var foreground = MeasureForeground(image.GetPixels32(), settings.size, manifest.background);
+                    manifest.timeline[frame] = foreground;
+                    if (foreground.area > 0) manifest.visibleFrames++;
+                    if (foreground.clipped) manifest.clippedFrames++;
                     File.WriteAllBytes(Path.Combine(output, FrameName(frame)), image.EncodeToPNG());
                 }
                 if (graphs.Length > 0 && manifest.visibleFrames == 0)
@@ -239,14 +291,20 @@ namespace VfxCreator.Editor
             return result;
         }
 
-        private static bool TouchesEdge(Color32[] pixels, int size, Color32 background)
+        private static ForegroundStats MeasureForeground(Color32[] pixels, int size, Color32 background)
         {
-            int lastRow = (size - 1) * size;
-            for (int i = 0; i < size; i++)
-                if (IsForeground(pixels[i], background) || IsForeground(pixels[lastRow + i], background) ||
-                    IsForeground(pixels[i * size], background) || IsForeground(pixels[i * size + size - 1], background))
-                    return true;
-            return false;
+            var foreground = new ForegroundAccumulator();
+            for (int row = 0; row < size; row++)
+            {
+                int start = row * size;
+                int y = size - 1 - row;
+                for (int x = 0; x < size; x++)
+                {
+                    var pixel = pixels[start + x];
+                    if (IsForeground(pixel, background)) foreground.Include(x, y, pixel);
+                }
+            }
+            return foreground.Complete(size);
         }
 
         private static Vector3 Position(CaptureSettings settings, float progress)

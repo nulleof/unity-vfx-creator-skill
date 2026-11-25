@@ -1,0 +1,33 @@
+[
+  {
+    "id": "00",
+    "rehearsal": true,
+    "package": "Toon_Projectiles_2_1.0.unitypackage",
+    "prefab": "Assets/Hovl Studio/Toon Projectiles 2/Prefabs/Flash 11.prefab",
+    "capture": {"Duration": 1.2, "Framing": 6},
+    "calibration": {"metric": "peakArea"}
+  },
+  {
+    "id": "01",
+    "package": "AAA Stylized Projectiles Vol1 v3.0.0.unitypackage",
+    "prefab": "Assets/Hovl Studio/AAA Projectiles Vol 1/Prefabs/Flash 6.prefab",
+    "capture": {"Duration": 1.2, "Framing": 6},
+    "calibration": {"metric": "peakArea"}
+  },
+  {
+    "id": "02",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Space/CFXR4 Laser Donut + Trail (Green).prefab",
+    "capture": {"Duration": 1.5, "Framing": 8, "Travel": 4},
+    "calibration": {"metric": "trajectory", "times": [0.2, 0.5, 0.8, 1.0]}
+  },
+  {
+    "id": "03",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Shields & Defense/Prefabs/Area Defense Bronze VFX.prefab",
+    "capture": {"Duration": 3, "Framing": 10, "CameraPitch": 20},
+    "events": [{"frame": 0, "name": "create"}, {"frame": 0, "name": "loop"}],
+    "steadyAfter": 1.5,
+    "calibration": {"metric": "steadyArea"}
+  }
+]

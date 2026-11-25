@@ -40,32 +40,8 @@ namespace VfxCreator.Editor
     [Serializable]
     internal struct FrameForeground
     {
-        public ForegroundBounds reference;
-        public ForegroundBounds candidate;
-    }
-
-    [Serializable]
-    internal struct ForegroundBounds
-    {
-        public int area;
-        public int xMin;
-        public int yMin;
-        public int xMax;
-        public int yMax;
-
-        public void Include(int x, int y)
-        {
-            if (area++ == 0)
-            {
-                xMin = xMax = x;
-                yMin = yMax = y;
-                return;
-            }
-            xMin = Math.Min(xMin, x);
-            yMin = Math.Min(yMin, y);
-            xMax = Math.Max(xMax, x);
-            yMax = Math.Max(yMax, y);
-        }
+        public ForegroundStats reference;
+        public ForegroundStats candidate;
     }
 
     internal static class Compare
@@ -97,19 +73,21 @@ namespace VfxCreator.Editor
                     string file = Render.FrameName(frame);
                     var original = LoadFrame(first, Path.Combine(request.reference, file), size);
                     var rebuilt = LoadFrame(second, Path.Combine(request.candidate, file), size);
-                    ref var foreground = ref overview.timeline[frame];
+                    var referenceForeground = new ForegroundAccumulator();
+                    var candidateForeground = new ForegroundAccumulator();
                     for (int row = 0; row < size; row++)
                     {
                         int start = row * size;
                         int stripStart = row * size * 3;
+                        int y = size - 1 - row;
                         for (int column = 0; column < size; column++)
                         {
                             var a = original[start + column];
                             var b = rebuilt[start + column];
                             bool visibleA = Render.IsForeground(a, reference.background);
                             bool visibleB = Render.IsForeground(b, candidate.background);
-                            if (visibleA) foreground.reference.Include(column, size - 1 - row);
-                            if (visibleB) foreground.candidate.Include(column, size - 1 - row);
+                            if (visibleA) referenceForeground.Include(column, y, a);
+                            if (visibleB) candidateForeground.Include(column, y, b);
                             if (visibleA && visibleB) intersection++;
                             int dr = Math.Abs(a.r - b.r), dg = Math.Abs(a.g - b.g), db = Math.Abs(a.b - b.b);
                             if (dr + dg + db > 0) overview.changedPixels++;
@@ -123,6 +101,12 @@ namespace VfxCreator.Editor
                             pixels[stripStart + column + size * 2] = new Color32((byte)dr, (byte)dg, (byte)db, 255);
                         }
                     }
+                    var foreground = new FrameForeground
+                    {
+                        reference = referenceForeground.Complete(size),
+                        candidate = candidateForeground.Complete(size)
+                    };
+                    overview.timeline[frame] = foreground;
                     UpdateTiming(frame, foreground.reference.area, ref overview.referenceOnset, ref overview.referencePeak, ref overview.referenceEnd, ref peakRef);
                     UpdateTiming(frame, foreground.candidate.area, ref overview.candidateOnset, ref overview.candidatePeak, ref overview.candidateEnd, ref peakNew);
                     strip.SetPixels32(pixels);
