@@ -1,37 +1,85 @@
 # VFX Creator
 
-Переносимый скилл Codex для создания редактируемых Unity URP-префабов из текстового брифа и пополняемого каталога рецептов.
+VFX Creator is a portable Codex skill for building editable, layered visual effects in Unity URP from a text brief and a catalog of reusable recipes. It can also inspect local effect packages, learn recipes from prefabs, and render captures for review.
 
-## Установка
+The installable skill is the complete [`vfx-creator/`](vfx-creator/) directory. The repository also contains development checks and evaluation scripts.
 
-Скопируй папку `vfx-creator` целиком в `.agents/skills/` проекта Unity. В новой сессии Codex попроси, например, «$vfx-creator сделай короткую ледяную вспышку с длинным следом и искрами при попадании». Понадобятся PowerShell 7.4+ и установленный Unity Editor той версии, которая указана в `ProjectSettings/ProjectVersion.txt`. Для команд сборки и захвата целевой проект должен быть закрыт в редакторе. Если Unity установлена вне обычных путей Hub, передай путь к исполняемому файлу через `-Editor`.
+## Features
 
-Результат лежит в `Assets/VfxCreatorGenerated/<id>/Effect.prefab` вместе с его материалами, текстурами и шейдером. В сцене префаб можно редактировать обычными средствами Unity. В составных эффектах фазы видны в иерархии. Для привязки к событиям игры можно отдельно использовать дочерние фазы. Preview-движение Trail Renderer задаётся через `-Travel` и `-Arc`, а в игре его перемещает объект, к которому он прикреплён.
+- Create particle and trail effects as editable Unity prefabs.
+- Find a starting recipe from a brief, then adapt or combine layers.
+- Generate textures, materials and shaders used by the effect.
+- Inventory local `.unitypackage` files and nested archives; learn recipe metadata from selected prefabs.
+- Render previews and compare a candidate against a reference capture.
+- Keep reusable recipes in a small JSON catalog.
 
-## Разработка и пополнение
+Build output is written to `Assets/VfxCreatorGenerated/<id>/`. Composite effects keep their phases as separate child objects, so they can be inspected or triggered independently in a game.
 
-Из корня репозитория прогоняй инструменты через `pwsh`. Пути `.vfx-work` предназначены для локальных результатов и Unity-кэшей.
+## Requirements
+
+- Codex with skills enabled.
+- PowerShell 7.4 or later.
+- Unity Editor installed. The target project must include URP and its Unity version must match the installed Editor. Reference captures in this repository use Unity `6000.6.8f1`.
+- Close the target project in Unity while running build or capture commands.
+
+## Install
+
+Copy the whole `vfx-creator` directory into the Unity project's `.agents/skills/` directory. The resulting path should be `.agents/skills/vfx-creator/`.
+
+Then open a new Codex session in that Unity project and try a request such as:
+
+> `$vfx-creator Create a short icy flash with a long trail and impact sparks.`
+
+For example, the generated prefab will be at `Assets/VfxCreatorGenerated/<id>/Effect.prefab`, alongside its materials, textures and shader. Open it in Unity to edit it. A Trail Renderer preview can use `-Travel` and `-Arc`; at runtime, move the GameObject that owns the trail.
+
+If Unity is installed outside a standard Unity Hub location, pass its executable path with `-Editor`.
+
+## Use the pipeline
+
+Run the pipeline from the root of a Unity project or pass `-Project` explicitly:
 
 ```powershell
-$vfx = './vfx-creator/scripts/vfx.ps1'
-& $vfx Init -Version 6000.6.8f1 -Project .vfx-work/reference -ReferenceStand
-& $vfx Inventory -Source C:/WORK/Effects -ExpandNested
-& $vfx Learn -Project .vfx-work/reference -Source 'C:/WORK/Effects/AAA Stylized Projectiles Vol1 v3.0.0.unitypackage' `
-    -Prefab 'Flash 7' -Id 'warm-flash' -Title 'Lilac layered flash' `
-    -Brief 'A compact lilac flash with pink sparks' -Recipe .vfx-work/warm-flash.json -Output .vfx-work/flash-reference
-& $vfx Find -Brief 'вспышка с искрами'
-& $vfx Build -Project 'C:/Games/MyGame' -Recipe .vfx-work/warm-flash.json `
-    -Id 'warm-flash-v1' -RenderAfterBuild -Output .vfx-work/flash-candidate
-& $vfx Compare -Project .vfx-work/reference -Reference .vfx-work/flash-reference `
-    -Candidate .vfx-work/flash-candidate -Output .vfx-work/flash-report
+$vfx = './.agents/skills/vfx-creator/scripts/vfx.ps1'
+
+# Find a recipe that resembles the request.
+& $vfx Find -Brief 'a compact lilac flash with pink sparks'
+
+# Build and render that recipe in the current Unity project.
+& $vfx Build -Project . -Recipe './.agents/skills/vfx-creator/catalog/warm-flash.json' `
+    -Id 'warm-flash-preview' -RenderAfterBuild
 ```
 
-Проверь и доработай новый рецепт по видео и кадрам. Затем добавь JSON в каталог, чтобы он находился по коротким описаниям в новых сессиях. Для VFX Graph автоматически извлекаются параметры и грубая структура. Роль разбора уточняет композицию по рендеру. Если пакет завязан на скрипт демонстрационной сцены или материал другого рендер-пайплайна, настрой движение и совместимый материал в эталонном проекте перед сравнением.
+The pipeline also includes `Inventory`, `Learn`, `Render` and `Compare` actions. Run `& $vfx <Action> -?` for the parameters of an action. For a recipe-format reference, see [`vfx-creator/references/recipes.md`](vfx-creator/references/recipes.md). For workflow guidance, see [`vfx-creator/SKILL.md`](vfx-creator/SKILL.md).
 
-## Проверка
+## Develop and evaluate
 
-`pwsh -File tests/Test-VfxCreator.ps1` проверяет переносимые файлы и поиск по брифу. С `-SourceRoot` тест также проверяет инвентаризацию паков. Параметр `-UnityProject` дополнительно собирает и рендерит эффект в указанном чистом URP-проекте. [Сценарии восстановления](evals/cases.json) задают пять стартовых примеров, шестой пример пополнения и параметры захвата.
+Run the local workflow smoke check from the repository root:
 
-`evals/Invoke-Reconstruction.ps1` запускает этапы `Reference`, `Candidate`, `Review` и `Variant`. Передай `-ReferenceProject` и `-SourceRoot` для эталонов, `-CleanProject` для сборки. Сценарий сборки стартует в новом локальном процессе с текстом и каталогом. Необязательный параметр `-FreshCodex` отправляет бриф и краткие описания рецептов в отдельную модельную сессию Codex CLI для выбора рецепта. Отчёты доступны в `<ResultsRoot>/reports/index.html`.
+```powershell
+pwsh -File tests/Test-VfxCreator.ps1
+```
 
-Первичная визуальная приёмка использует интерактивный локальный HTML-отчёт. Для более поздних прогонов можно передать утверждённый файл допусков через `Compare -Limits`. Машиночитаемый результат доступен в `comparison.json`.
+To include local source-package inventory or a build and render in a clean URP project, pass `-SourceRoot` or `-UnityProject`:
+
+```powershell
+pwsh -File tests/Test-VfxCreator.ps1 -SourceRoot '<path-to-your-effect-packs>'
+pwsh -File tests/Test-VfxCreator.ps1 -UnityProject '<path-to-a-clean-urp-project>'
+```
+
+[`evals/cases.json`](evals/cases.json) defines five reconstruction examples and one catalog-expansion example. `evals/Invoke-Reconstruction.ps1` supports `Reference`, `Candidate`, `Review` and `Variant` stages. It writes local captures and HTML reports under `.vfx-work/` by default. Reference packages are not included; provide source packages that you are allowed to use.
+
+An optional accuracy evaluation is defined in [`evals/accuracy-cases.json`](evals/accuracy-cases.json). `evals/Invoke-Accuracy.ps1` captures the teleport and aura references, renders candidates and compares them. Candidate runs use four clean URP projects named `old-teleport`, `new-teleport`, `old-aura` and `new-aura` under the results directory. After the reference and render/compare stages, run:
+
+```powershell
+pwsh -File evals/Measure-Accuracy.ps1 -ResultsRoot '.vfx-work/accuracy'
+```
+
+The reports include frame comparisons and measures for teleport pulse timing and aura visibility and area. These evaluations need the referenced third-party packages and a working Unity installation; neither is distributed here.
+
+## Contribute recipes
+
+Add recipe JSON files to `vfx-creator/catalog/`. Use descriptive IDs, titles, aliases and layer names, and keep recipes free of copied source assets. Store source packages, imported assets, reference frames, Unity caches and generated evaluation output in ignored working directories such as `.vfx-work/`.
+
+## License
+
+This repository is available under the [MIT License](LICENSE). Third-party Unity packages and assets used as evaluation references are not included and remain under their owners' licenses.
