@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "id": "warm-flash",
+  "title": "Lilac layered flash",
+  "description": "A compact lilac flash with a white central flare and fast pink sparks. Короткая сиреневая вспышка с розовыми искрами.",
+  "tags": [
+    "lilac",
+    "flash",
+    "sparks",
+    "muzzle",
+    "burst",
+    "вспышка",
+    "вспышку",
+    "искры",
+    "искрами",
+    "сиреневая"
+  ],
+  "duration": 1,
+  "seed": 1729,
+  "notes": [
+    "Three measured particle layers. The central flare and masks are procedural replacements."
+  ],
+  "layers": [
+    {
+      "name": "Soft flash envelope",
+      "phase": "muzzle",
+      "texture": {"kind":"glow"},
+      "tint": {"r":0.824,"g":0.42,"b":1,"a":0.6},
+      "lifetime": {"max":0.14},
+      "size": {"max":0.57},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "colorOverLife": {"mode":"gradient","gradient":{"colors":[{"time":0,"value":{"r":1,"g":1,"b":1,"a":1}},{"time":1,"value":{"r":1,"g":1,"b":1,"a":1}}],"alpha":[{"time":0,"value":1},{"time":0.8,"value":0.28},{"time":1,"value":0}]}},
+      "glow": 0.91,
+      "sizeOverLife": {"mode":"curve","multiplier":1,"keys":[{"time":0,"value":0.56},{"time":0.25,"value":1},{"time":1,"value":1.2}]}
+    },
+    {
+      "name": "Sharp focal flash",
+      "phase": "muzzle",
+      "texture": {"kind":"star","spokes":8,"falloff":2.05},
+      "tint": {"r":0.985,"g":0.533,"b":1,"a":0.76},
+      "lifetime": {"max":0.12},
+      "size": {"max":0.55},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "colorOverLife": {"mode":"gradient","gradient":{"colors":[{"time":0,"value":{"r":1,"g":1,"b":1,"a":1}},{"time":1,"value":{"r":1,"g":1,"b":1,"a":1}}],"alpha":[{"time":0,"value":1},{"time":0.8,"value":0.28},{"time":1,"value":0}]}},
+      "glow": 1.9,
+      "rotation": {"mode":"twoConstants","min":0,"max":1.2}
+    },
+    {
+      "name": "Flying sparks",
+      "phase": "muzzle",
+      "texture": {"kind":"spark"},
+      "tint": {"r":1,"g":0.241,"b":0.778,"a":0.55},
+      "lifetime": {"mode":"twoConstants","min":0.2,"max":0.25},
+      "size": {"mode":"twoConstants","min":0.045,"max":0.075},
+      "bursts": [{"time":0,"count":{"max":15}}],
+      "colorOverLife": {"mode":"gradient","gradient":{"colors":[{"time":0,"value":{"r":1,"g":1,"b":1,"a":1}},{"time":1,"value":{"r":1,"g":1,"b":1,"a":1}}],"alpha":[{"time":0,"value":1},{"time":0.8,"value":0.28},{"time":1,"value":0}]}},
+      "speed": {"mode":"twoConstants","min":2,"max":10},
+      "shape": {"type":"Sphere","radius":0.01},
+      "gravity": {"max":0.09},
+      "render": "Stretch",
+      "lengthScale": 3,
+      "velocityScale": 0.13
+    }
+  ]
+}

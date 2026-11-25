@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "id": "violet-spark-impact",
+  "title": "Violet impact with smoke",
+  "description": "A compact impact with a warm white core, multilayered gray smoke, a faint persistent mark and sparse violet sparks. Компактное попадание с бело-золотым ядром, слоями дыма и редкими фиолетовыми искрами.",
+  "tags": [
+    "violet",
+    "purple",
+    "impact",
+    "smoke",
+    "spikes",
+    "decal",
+    "фиолетовое",
+    "попадание",
+    "дым",
+    "всполох"
+  ],
+  "duration": 1.6,
+  "seed": 1729,
+  "notes": [
+    "The reference has flare, glow, spark, smoke and decal layers. Gray smoke and a warm core dominate the captured view."
+  ],
+  "layers": [
+    {
+      "name": "Compact hot point",
+      "phase": "impact",
+      "texture": {"kind":"star","spokes":6,"falloff":1.8},
+      "tint": {"r":0.99,"g":0.94,"b":0.7,"a":1},
+      "glow": 1.8,
+      "lifetime": {"max":0.39},
+      "size": {"max":0.22},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "sizeOverLife": {"mode":"curve","multiplier":1,"keys":[{"time":0,"value":0.57},{"time":0.17,"value":1},{"time":1,"value":0.67}]},
+      "colorOverLife": {"mode":"gradient","gradient":{"alpha":[{"time":0,"value":0.91},{"time":0.34,"value":0.89},{"time":1,"value":0}]}}
+    },
+    {
+      "name": "Diffuse pressure flash",
+      "phase": "impact",
+      "texture": {"kind":"glow","falloff":1.7},
+      "tint": {"r":0.65,"g":0.59,"b":0.44,"a":0.7},
+      "glow": 0.92,
+      "lifetime": {"max":0.21},
+      "size": {"max":0.51},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "sizeOverLife": {"mode":"curve","multiplier":1,"keys":[{"time":0,"value":0.66},{"time":0.19,"value":0.95},{"time":1,"value":1.06}]},
+      "colorOverLife": {"mode":"gradient","gradient":{"alpha":[{"time":0,"value":0.6},{"time":0.21,"value":0.81},{"time":1,"value":0}]}}
+    },
+    {
+      "name": "Irregular outer smoke",
+      "phase": "fade",
+      "texture": {"kind":"smoke","falloff":1.33,"detail":0.94},
+      "tint": {"r":0.45,"g":0.44,"b":0.42,"a":0.63},
+      "blend": "alpha",
+      "glow": 0.78,
+      "lifetime": {"mode":"twoConstants","min":0.42,"max":0.9},
+      "size": {"mode":"twoConstants","min":0.65,"max":0.91},
+      "bursts": [{"time":0,"count":{"max":5}}],
+      "shape": {"radius":0.16},
+      "speed": {"mode":"twoConstants","min":0.054,"max":0.15},
+      "rotation": {"mode":"twoConstants","min":-2,"max":2},
+      "sizeOverLife": {"mode":"curve","multiplier":1,"keys":[{"time":0,"value":0.63},{"time":0.23,"value":0.89},{"time":0.6,"value":1.14},{"time":1,"value":1.3}]},
+      "colorOverLife": {"mode":"gradient","gradient":{"alpha":[{"time":0,"value":0.52},{"time":0.22,"value":0.63},{"time":0.56,"value":0.36},{"time":1,"value":0}]}}
+    },
+    {
+      "name": "Inner smoke lobes",
+      "phase": "fade",
+      "texture": {"kind":"smoke","falloff":1.12,"detail":0.69},
+      "tint": {"r":0.51,"g":0.49,"b":0.45,"a":0.48},
+      "blend": "alpha",
+      "glow": 0.79,
+      "lifetime": {"mode":"twoConstants","min":0.36,"max":0.73},
+      "size": {"mode":"twoConstants","min":0.32,"max":0.6},
+      "bursts": [{"time":0,"count":{"max":4}}],
+      "shape": {"radius":0.1},
+      "speed": {"mode":"twoConstants","min":0.09,"max":0.25},
+      "rotation": {"mode":"twoConstants","min":-2.6,"max":2.6},
+      "sizeOverLife": {"mode":"curve","multiplier":1,"keys":[{"time":0,"value":0.4},{"time":0.31,"value":1.14},{"time":1,"value":1.28}]},
+      "colorOverLife": {"mode":"gradient","gradient":{"alpha":[{"time":0,"value":0.63},{"time":0.18,"value":0.72},{"time":0.66,"value":0.35},{"time":1,"value":0}]}}
+    },
+    {
+      "name": "Muted violet sparks",
+      "phase": "impact",
+      "texture": {"kind":"glow","falloff":1.6},
+      "tint": {"r":0.95,"g":0.33,"b":0.68,"a":0.8},
+      "glow": 0.9,
+      "lifetime": {"mode":"twoConstants","min":0.18,"max":0.44},
+      "size": {"mode":"twoConstants","min":0.046,"max":0.069},
+      "bursts": [{"time":0,"count":{"max":4}}],
+      "shape": {"radius":0.19},
+      "speed": {"mode":"twoConstants","min":0.08,"max":0.57},
+      "colorOverLife": {"mode":"gradient","gradient":{"alpha":[{"time":0,"value":0.83},{"time":0.52,"value":0.52},{"time":1,"value":0}]}}
+    },
+    {
+      "name": "Residual hot mark",
+      "phase": "fade",
+      "texture": {"kind":"glow","falloff":1.9},
+      "tint": {"r":0.62,"g":0.43,"b":0.64,"a":0.38},
+      "glow": 0.74,
+      "lifetime": {"max":1.7},
+      "size": {"max":0.21},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "colorOverLife": {"mode":"gradient","gradient":{"alpha":[{"time":0,"value":0.8},{"time":0.36,"value":0.66},{"time":0.88,"value":0.36},{"time":1,"value":0}]}}
+    }
+  ]
+}

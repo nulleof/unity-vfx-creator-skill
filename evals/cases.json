@@ -1,0 +1,50 @@
+[
+  {
+    "id": "arcane-smoke-impact",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "vfxgraph_StylizedSmoke_Impact_v6_Arcane",
+    "title": "Arcane smoke impact",
+    "brief": "An arcane purple impact with a fast pulse and layers of curling smoke",
+    "capture": { "Duration": 1.6, "Framing": 4 }
+  },
+  {
+    "id": "warm-flash",
+    "package": "AAA Stylized Projectiles Vol1 v3.0.0.unitypackage",
+    "prefab": "Flash 7",
+    "title": "Lilac layered flash",
+    "brief": "A compact lilac muzzle flash with a sharp central flare and fast pink sparks",
+    "capture": { "Duration": 1, "Framing": 3 }
+  },
+  {
+    "id": "clean-sword-arc",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "CFXR4 Sword Trail PLAIN (360 Thick)",
+    "title": "Thick sweeping arc",
+    "brief": "A broad thick sweeping crescent trail with a clean bright edge and a tapered tail",
+    "capture": { "Duration": 1.2, "Framing": 4, "Travel": 2.5, "Arc": 0.85 }
+  },
+  {
+    "id": "violet-spark-impact",
+    "package": "Stylized Projectile Pack 1 1.01.unitypackage",
+    "prefab": "Bullet_DemonPurple_Big_Impact",
+    "title": "Violet impact with smoke",
+    "brief": "A violet impact with a hot mark, sharp spikes, drifting smoke and scattered sparks",
+    "capture": { "Duration": 1.6, "Framing": 4 }
+  },
+  {
+    "id": "toon-star-hit",
+    "package": "Toon_Projectiles_2_1.0.unitypackage",
+    "prefab": "Hit 9",
+    "title": "Cartoon star hit",
+    "brief": "A cartoon star hit with a luminous central star and loose constellation of sparks",
+    "capture": { "Duration": 1, "Framing": 3 }
+  },
+  {
+    "id": "compact-petal-burst",
+    "package": "AAA Stylized Projectiles Vol1 v3.0.0.unitypackage",
+    "prefab": "Flash 10",
+    "title": "Cobalt petal burst",
+    "brief": "A compact cobalt petal burst with a bright central point and fast blue motes",
+    "capture": { "Duration": 1, "Framing": 3 }
+  }
+]

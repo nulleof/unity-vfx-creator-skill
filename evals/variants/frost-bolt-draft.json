@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "id": "frost-bolt-draft",
+  "title": "Frost bolt timing draft",
+  "description": "A three-marker timing and motion study for the Frost bolt.",
+  "tags": [],
+  "duration": 1.2,
+  "seed": 1729,
+  "notes": [],
+  "layers": [
+    {
+      "name": "Ignition marker",
+      "phase": "muzzle",
+      "texture": {"kind":"glow"},
+      "tint": {"r":0.36,"g":0.63,"b":1,"a":1},
+      "lifetime": {"max":0.15},
+      "size": {"max":0.6},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "colorOverLife": {"mode":"gradient","gradient":{"colors":[{"time":0,"value":{"r":1,"g":1,"b":1,"a":1}},{"time":1,"value":{"r":1,"g":1,"b":1,"a":1}}],"alpha":[{"time":0,"value":1},{"time":0.8,"value":0.28},{"time":1,"value":0}]}},
+      "position": {"x":-1.22,"y":0,"z":0}
+    },
+    {
+      "name": "Projectile marker",
+      "phase": "projectile",
+      "texture": {"kind":"glow"},
+      "tint": {"r":0.36,"g":0.63,"b":1,"a":1},
+      "lifetime": {"max":0.27},
+      "size": {"max":0.23},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "colorOverLife": {"mode":"gradient","gradient":{"colors":[{"time":0,"value":{"r":1,"g":1,"b":1,"a":1}},{"time":1,"value":{"r":1,"g":1,"b":1,"a":1}}],"alpha":[{"time":0,"value":1},{"time":0.8,"value":0.28},{"time":1,"value":0}]}},
+      "position": {"x":-1.22,"y":0,"z":0},
+      "velocityX": {"max":9.1}
+    },
+    {
+      "name": "Impact marker",
+      "phase": "impact",
+      "texture": {"kind":"glow"},
+      "tint": {"r":0.36,"g":0.63,"b":1,"a":1},
+      "lifetime": {"max":0.4},
+      "size": {"max":0.73},
+      "bursts": [{"time":0,"count":{"max":1}}],
+      "colorOverLife": {"mode":"gradient","gradient":{"colors":[{"time":0,"value":{"r":1,"g":1,"b":1,"a":1}},{"time":1,"value":{"r":1,"g":1,"b":1,"a":1}}],"alpha":[{"time":0,"value":1},{"time":0.8,"value":0.28},{"time":1,"value":0}]}},
+      "position": {"x":1.24,"y":0,"z":0},
+      "delay": {"max":0.27}
+    }
+  ]
+}
