@@ -1,0 +1,44 @@
+[
+  {
+    "id": "01",
+    "package": "AAA Stylized Projectiles Vol1 v3.0.0.unitypackage",
+    "prefab": "Hit 13",
+    "capture": {"Duration": 1.5, "Framing": 12}
+  },
+  {
+    "id": "02",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "CFXR4 Bubbles Whirl Attraction (Loop)",
+    "capture": {"Duration": 3, "Framing": 8, "CameraPitch": 15},
+    "steadyAfter": 1
+  },
+  {
+    "id": "03",
+    "package": "Stylized Projectile Pack 1 1.01.unitypackage",
+    "prefab": "Bullet_GoldFire_Big_Projectile",
+    "capture": {"Duration": 1.5, "Framing": 8, "Travel": 4}
+  },
+  {
+    "id": "04",
+    "package": "Toon_Projectiles_2_1.0.unitypackage",
+    "prefab": "Flash 11",
+    "capture": {"Duration": 1.2, "Framing": 6}
+  },
+  {
+    "id": "05",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Shields & Defense/Prefabs/Shield Bubble Cyan VFX.prefab",
+    "capture": {"Duration": 4, "Framing": 10, "CameraPitch": 20},
+    "events": [{"frame": 0, "name": "create"}, {"frame": 0, "name": "loop"}, {"frame": 75, "name": "hit"}],
+    "steadyAfter": 1.5,
+    "beats": [{"start": 0, "end": 1}, {"start": 2.5, "end": 3.4}]
+  },
+  {
+    "id": "06",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/StylizedBeams/vfx_StylizedBeam_v1.prefab",
+    "capture": {"Duration": 3, "Framing": 12, "CameraPitch": 10},
+    "steadyAfter": 1
+  }
+]

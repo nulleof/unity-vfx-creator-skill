@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "id": "sparse-drifting-snow",
+  "title": "Sparse drifting snow",
+  "description": "Slow falling snow in a shallow field with intermittent near flakes and dimmer background motes. Редкие снежинки плавно опускаются с лёгким боковым дрейфом.",
+  "tags": ["snow", "snowfall", "weather", "ambient", "loop", "снег", "снегопад", "снежинки"],
+  "duration": 4,
+  "seed": 1729,
+  "layers": [
+    {
+      "name": "Fine distant snow",
+      "phase": "ambient",
+      "position": {"y": 0.8, "z": 0.6},
+      "texture": {"kind": "glow", "falloff": 2.5},
+      "tint": {"r": 0.68, "g": 0.8, "b": 0.94, "a": 0.65},
+      "glow": 0.65,
+      "loop": true,
+      "duration": 4,
+      "lifetime": {"mode": "twoConstants", "min": 1.8, "max": 2.7},
+      "rate": {"max": 24},
+      "size": {"mode": "twoConstants", "min": 0.055, "max": 0.085},
+      "shape": {"type": "Box", "scale": {"x": 4, "y": 0.65, "z": 1.5}},
+      "velocityX": {"mode": "twoConstants", "min": -0.18, "max": 0.22},
+      "velocityY": {"mode": "twoConstants", "min": -0.78, "max": -0.45},
+      "colorOverLife": {"mode": "gradient", "gradient": {"alpha": [{"time": 0, "value": 0}, {"time": 0.18, "value": 0.8}, {"time": 0.68, "value": 0.64}, {"time": 1, "value": 0}]}}
+    },
+    {
+      "name": "Occasional near flakes",
+      "phase": "ambient",
+      "position": {"y": 1.1, "z": -0.7},
+      "texture": {"kind": "spark", "falloff": 2.1},
+      "tint": {"r": 0.86, "g": 0.93, "b": 1, "a": 0.65},
+      "glow": 0.82,
+      "loop": true,
+      "duration": 4,
+      "lifetime": {"mode": "twoConstants", "min": 1.8, "max": 2.3},
+      "rate": {"max": 6},
+      "size": {"mode": "twoConstants", "min": 0.075, "max": 0.12},
+      "shape": {"type": "Box", "scale": {"x": 3.5, "y": 0.4, "z": 0.6}},
+      "velocityX": {"mode": "twoConstants", "min": 0.1, "max": 0.35},
+      "velocityY": {"mode": "twoConstants", "min": -1.1, "max": -0.68},
+      "colorOverLife": {"mode": "gradient", "gradient": {"alpha": [{"time": 0, "value": 0}, {"time": 0.15, "value": 0.78}, {"time": 0.65, "value": 0.64}, {"time": 1, "value": 0}]}}
+    }
+  ]
+}

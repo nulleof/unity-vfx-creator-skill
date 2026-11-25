@@ -9,14 +9,16 @@ This folder is the whole skill. Use PowerShell 7.4+ and an installed Unity edito
 
 ## Create or adapt
 
-1. Read [authoring](roles/author.md) and the [recipe format](references/recipes.md). Run `Find` with the brief and inspect the closest recipes. If the brief describes a new effect family, look for reusable individual layers such as a timed core, a ribbon or a dissolving contour. Use the request's timing, camera, palette and changed properties to decide which layers to reuse or synthesize.
-2. Write a draft recipe with the action phases and a simple visual per phase. Build it to its own output ID and render it. Refine the final recipe using measured curves and distinct core, contour, secondary motion and fade layers where the effect needs them.
-3. Build the final prefab and render it. Check both movement and still frames as described in [review](roles/review.md). Return the prefab path, a preview or report, and any adjustment that affects integration.
+1. Read [authoring](roles/author.md) and the [recipe format](references/recipes.md). Run `Find` with the brief. Choose a template by silhouette, motion and lifetime. Borrow individual layers or synthesize the defining shapes when the catalog only matches part of the effect.
+2. Draft the action phases and their dominant shapes. Build under a draft ID and render with the intended camera and motion. Use the candidate's own frames to tune projected size, phase timing, color and accents against the brief.
+3. Build the final prefab and render it. Check motion and key frames as described in [review](roles/review.md). Return the final recipe, prefab path, a preview or report, and any gameplay trigger or attachment requirements.
 
 ## Learn
 
-Read [analysis](roles/analyze.md). Use `Inventory` to discover effects and nested archives. Run `Learn` on a chosen prefab to collect structured metadata and a local reference capture. Inspect the capture and tune the candidate recipe before adding the JSON into `catalog/`. Use descriptive titles, aliases and layer names. Keep source asset content and reference frames outside the skill directory.
+Read [analysis](roles/analyze.md). Use `Inventory` to discover effects and nested archives. Group the effects by action, silhouette and timing so that variants can teach shared construction patterns. Use `Learn` on representative prefabs to collect structured metadata and local reference captures. Translate the visible behavior into editable layers and validate the reusable recipe in a clean project. Add useful, distinct recipes to `catalog/` with descriptive titles, aliases and layer names. Keep source asset content and reference frames outside the skill directory.
 
 ## Verify
 
-For blind tests, give a fresh authoring session this folder, the text brief and a clean game project. Run comparison only after authoring has delivered the prefab. Evaluate reconstruction as visual similarity, and record pixel differences alongside the qualitative result. See [review](roles/review.md).
+For blind tests, let analysis prepare a source-free brief from the reference. Give a fresh authoring session this folder, the brief and a clean game project. Freeze the candidate recipe, prefab and capture before giving the reviewer reference frames. Review-guided revisions can follow as a separate pass. Evaluate visual similarity and record pixel differences alongside the qualitative result. See [review](roles/review.md).
+
+When delegating, give analysis and review to sessions that can inspect Unity captures and timed frame evidence. Give authoring to a session that can build and iterate Unity recipes. Pass each role its own inputs as described in the role files.

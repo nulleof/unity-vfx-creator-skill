@@ -1,0 +1,207 @@
+[
+  {
+    "id": "aura",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Essentials/Prefabs/Aura Teal VFX.prefab",
+    "capture": {"Duration":4.0,"Framing":6.0,"CameraPitch":20.0},
+    "events": [{"frame":0,"name":"loop"}],
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "beam",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Space/CFXR4 Laser (Orange).prefab",
+    "capture": {"Duration":2.0,"Framing":10.0,"CameraPitch":10.0}
+  },
+  {
+    "id": "buff",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Characters & Artifacts/Prefabs/For Simple Meshes/Blessing Gold Simple.prefab",
+    "capture": {"Duration":3.0,"Framing":8.0,"CameraPitch":15.0}
+  },
+  {
+    "id": "burst",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Missiles & Explosions/Prefabs/Outburst Cyan.prefab",
+    "capture": {"Duration":2.5,"Framing":10.0,"CameraPitch":15.0},
+    "events": [{"frame":0,"name":"create"},{"frame":30,"name":"hit"}]
+  },
+  {
+    "id": "debuff",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Texts/CFXR4 _CURSED_.prefab",
+    "capture": {"Duration":2.0,"Framing":5.0}
+  },
+  {
+    "id": "dissolve",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Magic Misc/CFXR4 Disintegrate (HDR).prefab",
+    "capture": {"Duration":3.0,"Framing":8.0,"CameraPitch":15.0}
+  },
+  {
+    "id": "distortion",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Screen Distortion/CFXR ScreenDistortion Ring.prefab",
+    "capture": {"Duration":2.0,"Framing":8.0,"CameraPitch":10.0}
+  },
+  {
+    "id": "environment",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Nature/CFXR4 Snow Falling.prefab",
+    "capture": {"Duration":4.0,"Framing":12.0,"CameraPitch":15.0},
+    "steadyAfter": 1.5
+  },
+  {
+    "id": "explosion",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Explosions/CFXR4 Explosion Quick.prefab",
+    "capture": {"Duration":1.8,"Framing":6.0,"CameraPitch":10.0}
+  },
+  {
+    "id": "fire",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Fire/CFXR4 Burning Fire.prefab",
+    "capture": {"Duration":3.0,"Framing":6.0,"CameraPitch":10.0},
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "ground",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/Earthbenders/vfxgraph_Earthbender_v1.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":3.0,"Framing":48.0,"CameraPitch":20.0}
+  },
+  {
+    "id": "healing",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Essentials/Prefabs/Heal Azure VFX.prefab",
+    "capture": {"Duration":3.0,"Framing":8.0,"CameraPitch":20.0},
+    "events": [{"frame":0,"name":"create"},{"frame":0,"name":"loop"},{"frame":50,"name":"hit"}]
+  },
+  {
+    "id": "ice",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/StylizedIceAttack/vfx_IceAttack01_v1.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":3.0,"Framing":10.0,"CameraPitch":15.0}
+  },
+  {
+    "id": "impact",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/StylizedSmoke/vfxgraph_StylizedSmoke_Impact_v6_Arcane.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":1.6,"Framing":4.0}
+  },
+  {
+    "id": "lightning",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/ElectricOrbs/vfx_Electricity_Loop_v1.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":3.0,"Framing":8.0,"CameraPitch":15.0},
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "liquid",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/ToonLiquids/vfx_Water_Burst_v1.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":2.5,"Framing":10.0,"CameraPitch":15.0}
+  },
+  {
+    "id": "loot",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Magic Misc/CFXR4 Shiny Treasure Content.prefab",
+    "capture": {"Duration":3.0,"Framing":6.0,"CameraPitch":15.0},
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "movement",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Essentials/Prefabs/Leap Cyan VFX.prefab",
+    "capture": {"Duration":2.5,"Framing":10.0,"CameraPitch":15.0,"Travel":3.0,"Arc":1.0},
+    "events": [{"frame":0,"name":"loop"},{"frame":35,"name":"hit"}]
+  },
+  {
+    "id": "muzzle-flash",
+    "package": "AAA Stylized Projectiles Vol1 v3.0.0.unitypackage",
+    "prefab": "Assets/Hovl Studio/AAA Projectiles Vol 1/Prefabs/Flash 7.prefab",
+    "capture": {"Duration":1.0,"Framing":3.0}
+  },
+  {
+    "id": "orb",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Missiles & Explosions/Prefabs/Orb Silver.prefab",
+    "capture": {"Duration":3.0,"Framing":8.0,"CameraPitch":10.0},
+    "events": [{"frame":0,"name":"create"},{"frame":0,"name":"loop"},{"frame":30,"name":"buildup"}],
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "portal",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/Portals/vfx_Portal_v1.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":3.0,"Framing":10.0,"CameraPitch":10.0},
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "projectile",
+    "package": "Stylized Projectile Pack 1 1.01.unitypackage",
+    "prefab": "Assets/StylizedProjectilePack1/prefabs/Laser/Laser_Blue/Laser_Big_Blue/Laser_Blue_Big_Projectile.prefab",
+    "capture": {"Duration":1.5,"Framing":8.0,"Travel":4.0}
+  },
+  {
+    "id": "shield",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Shields & Defense/Prefabs/Arc Shield Blue VFX.prefab",
+    "capture": {"Duration":3.0,"Framing":10.0,"CameraPitch":20.0},
+    "events": [{"frame":0,"name":"create"},{"frame":0,"name":"loop"},{"frame":45,"name":"hit"}],
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "slash",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Sword Trails/Magical/CFXR4 Sword Slash POISON (180 Edge).prefab",
+    "capture": {"Duration":1.2,"Framing":5.0}
+  },
+  {
+    "id": "smoke",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Misc/CFXR4 Lit Smoke Column.prefab",
+    "capture": {"Duration":3.0,"Framing":9.0,"CameraPitch":10.0},
+    "steadyAfter": 1.0
+  },
+  {
+    "id": "summon",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/SummonCreatures/vfx_SC_TigerAttack_lite.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":3.0,"Framing":12.0,"CameraPitch":15.0}
+  },
+  {
+    "id": "teleport",
+    "package": "UNI VFX Ultimate pack for Visual Effect Graph 1.0.1.unitypackage",
+    "prefab": "Assets/UNI VFX/Essentials/Prefabs/Teleport Purple VFX.prefab",
+    "capture": {"Duration":8.0,"Framing":6.0,"CameraPitch":20.0},
+    "events": [{"frame":0,"name":"in"},{"frame":120,"name":"out"}]
+  },
+  {
+    "id": "text",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Texts/CFXR4 _FROZEN_.prefab",
+    "capture": {"Duration":2.0,"Framing":5.0}
+  },
+  {
+    "id": "trail",
+    "package": "Cartoon FX 4 Remaster r1.5.0.unitypackage",
+    "prefab": "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Sword Trails/Plain/CFXR4 Sword Trail PLAIN (360 Thick).prefab",
+    "capture": {"Duration":1.2,"Framing":4.0,"Travel":2.5,"Arc":0.85}
+  },
+  {
+    "id": "weapon",
+    "package": "VFX Graph - Ultra Mega Pack - Vol1 v1.3.unitypackage",
+    "prefab": "Assets/GabrielAguiarProductions/Prefabs/WeaponEffects/vfx_SwordVFX_v1.prefab",
+    "nested": "Assets/GabrielAguiarProductions/VFXGraph_UltraMegaPackV1_2021.3_URP_v1.3.0.unitypackage",
+    "capture": {"Duration":3.0,"Framing":8.0,"CameraPitch":10.0},
+    "steadyAfter": 1.0
+  }
+]

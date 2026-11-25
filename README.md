@@ -76,6 +76,29 @@ pwsh -File evals/Measure-Accuracy.ps1 -ResultsRoot '.vfx-work/accuracy'
 
 The reports include frame comparisons and measures for teleport pulse timing and aura visibility and area. These evaluations need the referenced third-party packages and a working Unity installation; neither is distributed here.
 
+### Corpus learning and blind benchmark
+
+The corpus inventory records prefab, graph and scene paths, archive fingerprints, renderer evidence, groups of variants and candidate status. It scans nested packages and reuses the index for unchanged archives. Run it with the local package directory, then verify that the learning manifest covers the eligible families and keeps the control groups separate.
+
+```powershell
+pwsh -File evals/Invoke-CorpusInventory.ps1 -SourceRoot '<path-to-your-effect-packs>'
+pwsh -File evals/Test-CorpusSplit.ps1 -Inventory '.vfx-work/corpus/inventory.json'
+```
+
+[`evals/corpus-learning.json`](evals/corpus-learning.json) selects one representative per family. [`evals/corpus-holdouts.json`](evals/corpus-holdouts.json) selects six control effects, one per source pack. Capture either set with `Invoke-CorpusCapture.ps1` and a disposable URP reference stand created by `vfx.ps1 Init -ReferenceStand`. Pass a separate `-ResultsRoot` when capturing the learning set. A capture can use a wider frame on the second attempt to fit the complete effect. For a graph that needs an explicit startup or hit, record its schedule in the manifest. If a stand has conflicting imported dependencies, capture the affected cases in a fresh stand.
+
+```powershell
+$results = '.vfx-work/corpus-iteration'
+./evals/Invoke-CorpusCapture.ps1 -Project '<reference-stand>' `
+    -SourceRoot '<path-to-your-effect-packs>' -ResultsRoot $results
+./evals/Invoke-CorpusAuthors.ps1 -ResultsRoot $results -BaselineSkill '<frozen-vfx-creator-folder>'
+./evals/Measure-CorpusBenchmark.ps1 -Stage Compare -ResultsRoot $results -Project '<comparison-project>'
+```
+
+Freeze the whole baseline skill before updating it. The author runner installs a disposable copy per run, builds a draft from the anonymous brief, shows the author their draft capture, then exports their final recipe and prefab. It uses Codex CLI and records token counts when returned. It can also run in `Prepare`, `Draft` and `Finalize` stages for fresh external author sessions. `Invoke-CorpusAuthors.ps1` resumes existing runs, so use a new results directory when changing recipes, briefs, model or capture settings.
+
+After both candidates are exported, give the reviewer only the anonymous contact sheets and, when needed, the side-by-side sequences under `review/<case>/`. Contact sheets use `System.Drawing.Common` on Windows. Save the reviewer's preference as `review/<case>/verdict.json` with `preference` set to `A`, `B` or `tie` and optional `notes`. Run `Measure-CorpusBenchmark.ps1` again with `-Stage Summarize` to record the verdicts, paired metrics, capture problems and measured resources in `benchmark.json`. The benchmark passes with six comparable, reviewed pairs, at least four visual preferences for the updated skill, a median foreground IoU gain of at least 0.05 and a median color error increase of at most 0.02.
+
 ## Contribute recipes
 
 Add recipe JSON files to `vfx-creator/catalog/`. Use descriptive IDs, titles, aliases and layer names, and keep recipes free of copied source assets. Store source packages, imported assets, reference frames, Unity caches and generated evaluation output in ignored working directories such as `.vfx-work/`.

@@ -129,6 +129,11 @@ function Install-VfxPackagePrefab([string]$Path, [string]$Prefab, [string]$Proje
         if (!$index.ContainsKey($guid) -or !$selected.Add($guid)) { continue }
         $row = $index[$guid]
         foreach ($dependency in $row.dependencies) { $queue.Enqueue($dependency) }
+        if ($row.path -like '*.cs') {
+            foreach ($companion in $index.Values) {
+                if (Test-VfxPartialScript $row.path $companion.path) { $queue.Enqueue($companion.guid) }
+            }
+        }
         if ($row.path -match '\.(?:[a-z0-9]*shader|hlsl|cginc)$') {
             $parent = [IO.Path]::GetDirectoryName($row.path).Replace('\', '/')
             foreach ($include in $index.Values) {
@@ -169,6 +174,14 @@ function Install-VfxPackagePrefab([string]$Path, [string]$Prefab, [string]$Proje
         $archive.Dispose()
     }
     return $root.path
+}
+
+function Test-VfxPartialScript([string]$Script, [string]$Companion) {
+    if ($Companion -notlike '*.cs' -or $Script -ieq $Companion) { return $false }
+    $stem = $Script.Substring(0, $Script.Length - 3)
+    $companionStem = $Companion.Substring(0, $Companion.Length - 3)
+    return $companionStem.StartsWith("$stem.", [StringComparison]::OrdinalIgnoreCase) -or
+        $stem.StartsWith("$companionStem.", [StringComparison]::OrdinalIgnoreCase)
 }
 
 function Install-VfxProjectPrefab([string]$SourceProject, [string]$Prefab, [string]$Stand) {
@@ -219,6 +232,10 @@ function Install-VfxProjectPrefab([string]$SourceProject, [string]$Prefab, [stri
         foreach ($dependency in [regex]::Matches($metadata, $guidPattern)) {
             $guid = $dependency.Groups[1].Value
             if ($files.ContainsKey($guid)) { $pending.Enqueue($files[$guid]) }
+        }
+        if ($sourceAsset -like '*.cs') {
+            Get-ChildItem -LiteralPath ([IO.Path]::GetDirectoryName($sourceAsset)) -File -Filter '*.cs' |
+                Where-Object { Test-VfxPartialScript $sourceAsset $_.FullName } | ForEach-Object { $pending.Enqueue($_.FullName) }
         }
         if ($sourceAsset -match '\.(?:[a-z0-9]*shader|hlsl|cginc)$') {
             Get-ChildItem -LiteralPath ([IO.Path]::GetDirectoryName($sourceAsset)) -File -Recurse |

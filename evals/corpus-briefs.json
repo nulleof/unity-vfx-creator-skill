@@ -1,0 +1,26 @@
+[
+  {
+    "id": "01",
+    "brief": "Create a tiny, fleeting red-orange spark burst centered against a nearly black background. At the start a small hot pale-orange point has a few sharp red rays. In the first 0.07 s it breaks into a sparse spray of short red-orange streaks and pinpoints, spreading outward and slightly downward. By 0.13 s the bright center is gone and only a handful of very faint ember-like dots remain. These drift farther apart and fade through 0.7–1.1 s; the frame is almost completely dark by 1.4 s. Keep the whole effect exceptionally small and dim: the initial flare is only a few percent of frame width, and the widest faint remnants occupy roughly 20% of the frame. Avoid a large flash, smoke, or persistent glow."
+  },
+  {
+    "id": "02",
+    "brief": "Create a very subtle, sparse cluster of tiny gray-white hollow rings and pinprick flecks on a nearly black background. Start almost invisible; a few specks appear around 0.13–0.3 s. By 0.5–0.9 s they gather near the center, and by 1.5–3 s a narrow, irregular column of drifting rings and faint dots extends downward from that cluster. Keep individual rings thin, dim, and varied slightly in size, with no bright glow or dense cloud. The visible group occupies roughly 15% of the frame width and 25–30% of its height at its largest. Hold the restrained, slowly changing appearance through 3 s."
+  },
+  {
+    "id": "03",
+    "brief": "Create a small, warm golden-orange glowing spark travelling steadily from left to right across a dark frame over 1.5 s. It starts as a tiny dot around 25% across and 50% down, grows into a compact irregular star-like flare by 0.13 s, and crosses to about 75% across by 1.4 s. The center is pale yellow-white, surrounded by soft amber haze and short uneven pointed rays. It pulses and changes shape slightly while moving, becoming smaller near 0.7 s and brightening again later. Keep it compact: typically 4–8% of frame width, with no long trail."
+  },
+  {
+    "id": "04",
+    "brief": "Create a brief, delicate pale yellow-white glint centered on a nearly black background. At the start it is a tiny sharp star with a few uneven rays and a soft muted yellow halo, spanning about 7–9% of frame width including the glow. It contracts quickly: by 0.07 s the rays have mostly vanished into a dim round halo with a few specks, and by 0.13–0.2 s only a tiny faint point remains. Fade to almost complete darkness by about 0.4–0.6 s, with the rest of the 1.2 s interval empty. Keep the light restrained rather than explosive."
+  },
+  {
+    "id": "05",
+    "brief": "Create a dark blue, vertically oriented twisting energy form suspended at frame center. It begins nearly invisible and builds between 0.2 and 0.8 s into several fine, curved cobalt and cyan streaks crossing and wrapping around an open, dark center. By 1.2–2 s the intertwined ribbons form a tapered, roughly oval double-helix silhouette, about 30% of frame width and 45–50% of frame height. Keep the lines thin, fragmented, translucent, and uneven, with dim blue interior wisps and occasional muted warm highlights; the background stays nearly black. Around 2.5–3 s add a brief scattering of small yellow-gold sparks spreading to either side, then let those flecks disappear while the blue twisting shape persists through 4 s."
+  },
+  {
+    "id": "06",
+    "brief": "Create a centered warm luminous shape that grows from a tiny orange point into layered, translucent angular squares. At 0.13 s show a small soft orange-white orb; by 0.3 s a tilted pale gold square appears above and around it. By 0.5–0.9 s several overlapping semi-transparent golden and orange squares, rotated at different angles, fill roughly 35–40% of the frame width and height. A pale yellow-white core glows at their center, with a second small orange-white glowing orb just below the layered shape. The squares slowly rotate and change size and opacity over 3 s, shifting from amber/orange around 1.5 s to muted yellow-gold later. Keep their edges visibly straight and crisp while the two lights have soft halos; no long trails."
+  }
+]
