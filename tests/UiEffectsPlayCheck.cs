@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public sealed class UiEffectsPlayCheck : MonoBehaviour
+public sealed partial class UiEffectsPlayCheck : MonoBehaviour
 {
     [Serializable]
     public sealed class Effect
@@ -45,17 +45,20 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
         public Effect effect;
         public Animator animator;
         public CanvasGroup[] layers;
+        private int startedFrame = -1;
         public bool Idle => animator.GetCurrentAnimatorStateInfo(0).IsName(effect.idleState);
         public bool Visible => layers.Any(layer => layer.alpha > 0.001f);
 
         public void Play(bool reduced)
         {
-            if (!Idle && effect.placement.retrigger == "ignoreWhilePlaying") return;
-            SetState(reduced ? effect.reducedState : effect.standardState);
+            if (effect.placement.retrigger == "ignoreWhilePlaying" && (!Idle || startedFrame == Time.frameCount)) return;
+            animator.Play(reduced ? effect.reducedState : effect.standardState, 0, 0);
+            startedFrame = Time.frameCount;
         }
 
         public void Cancel()
         {
+            startedFrame = -1;
             animator.speed = 1;
             SetState(effect.idleState);
         }
@@ -65,6 +68,11 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
             animator.speed = 0;
             float duration = reduced ? effect.reducedDurationSec : effect.standardDurationSec;
             SetState(reduced ? effect.reducedState : effect.standardState, seconds / duration);
+        }
+
+        public void UseManualTiming()
+        {
+            animator.updateMode = AnimatorUpdateMode.Normal;
         }
 
         private void SetState(string state, float normalizedTime = 0)
@@ -92,27 +100,45 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
     private string output;
     private int confirmedClicks;
     private bool reducedMotion;
+    private bool effectsEnabled = true;
 
     private IEnumerator Start()
     {
         Application.runInBackground = true;
         Application.targetFrameRate = 60;
         string[] args = Environment.GetCommandLineArgs();
-        output = args[Array.IndexOf(args, "-vfxUiReviewOutput") + 1];
-        var check = Verify();
-        while (true)
+        bool android = Application.platform == RuntimePlatform.Android;
+        if (android) Screen.sleepTimeout = SleepTimeout.NeverSleep;
+        output = android ? Path.Combine(Application.persistentDataPath, "ui-review") : args[Array.IndexOf(args, "-vfxUiReviewOutput") + 1];
+        Directory.CreateDirectory(output);
+        bool review = android || args.Contains("-vfxUiMobileReview");
+        var steps = new Stack<IEnumerator>();
+        steps.Push(review ? ReviewMobile(android, args.Contains("-vfxUiMotionFrames")) : Verify());
+        while (steps.Count > 0)
         {
             object delay;
             try
             {
-                if (!check.MoveNext()) break;
+                var check = steps.Peek();
+                if (!check.MoveNext())
+                {
+                    steps.Pop();
+                    continue;
+                }
                 delay = check.Current;
             }
             catch (Exception error)
             {
+                foreach (var step in steps) (step as IDisposable)?.Dispose();
                 Debug.LogException(error);
+                File.WriteAllText(Path.Combine(output, "failure.txt"), error.ToString());
                 Application.Quit(1);
                 yield break;
+            }
+            if (delay is IEnumerator nested && delay is not CustomYieldInstruction)
+            {
+                steps.Push(nested);
+                continue;
             }
             yield return delay;
         }
@@ -122,7 +148,9 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
             passed = true, confirmedClicks = confirmedClicks, width = Screen.width,
             height = Screen.height, captures = captures.ToArray()
         };
-        File.WriteAllText(Path.Combine(output, "playback.json"), JsonUtility.ToJson(report, true));
+        string completion = Path.Combine(output, "playback.json");
+        File.WriteAllText(completion + ".tmp", JsonUtility.ToJson(report, true));
+        File.Move(completion + ".tmp", completion);
         Application.Quit(0);
     }
 
@@ -140,10 +168,12 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
             "Reward halo must layer below the amount.");
 
         Click(confirmButton);
+        yield return new WaitForEndOfFrame();
         Require(confirmedClicks == 1 && confirm.Visible, "Confirmation must start on the click.");
         yield return new WaitForSecondsRealtime(0.07f);
         float earlier = Progress(confirm);
         Click(confirmButton, 0.19f);
+        yield return new WaitForEndOfFrame();
         Require(confirmedClicks == 2 && earlier > 0 && Progress(confirm) < earlier,
             "A rapid click through the visible glint must restart the same confirmation instance.");
 
@@ -156,21 +186,30 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
 
         Click(revealButton);
         Click(confirmButton);
+        yield return new WaitForEndOfFrame();
         Require(confirm.Visible && cooldown.Visible && reward.Visible && amount.text == "+250",
             "Overlapping feedback must leave the reward amount readable immediately.");
 
         SamplePeak(false);
         var clippedLayer = (RectTransform)confirm.layers[0].transform;
+        Vector2 clipMin = clippedLayer.anchorMin;
+        Vector2 clipMax = clippedLayer.anchorMax;
         clippedLayer.anchorMin = Vector2.one * 4;
         clippedLayer.anchorMax = Vector2.one * 5;
         Canvas.ForceUpdateCanvases();
         Require(clippedLayer.GetComponent<Image>().canvasRenderer.cull, "Target mask must cull a layer outside the button.");
+        clippedLayer.anchorMin = clipMin;
+        clippedLayer.anchorMax = clipMax;
         var inherited = cooldown.layers[0].GetComponent<Image>();
         Require(!inherited.canvasRenderer.cull, "Inherited clipping must keep the in-bounds contour visible.");
+        Vector2 inheritedMin = inherited.rectTransform.anchorMin;
+        Vector2 inheritedMax = inherited.rectTransform.anchorMax;
         inherited.rectTransform.anchorMin = Vector2.one * 5;
         inherited.rectTransform.anchorMax = Vector2.one * 6;
         Canvas.ForceUpdateCanvases();
         Require(inherited.canvasRenderer.cull, "The ancestor mask must clip the inherited layer.");
+        inherited.rectTransform.anchorMin = inheritedMin;
+        inherited.rectTransform.anchorMax = inheritedMax;
         SamplePeak(false);
         yield return new WaitForEndOfFrame();
         SaveCapture("standard-peak.png");
@@ -182,12 +221,15 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
         SaveCapture("skipped-reveal.png");
 
         Click(revealButton);
+        yield return null;
+        yield return new WaitForEndOfFrame();
         Require(reward.Visible, "A skipped reveal must be replayable.");
         confirm.animator.speed = 1;
         cooldown.animator.speed = 1;
         yield return new WaitForSecondsRealtime(reward.effect.standardDurationSec + 0.10f);
         AssertIdle(confirm, cooldown, reward);
         Click(revealButton);
+        yield return new WaitForEndOfFrame();
         Require(reward.Visible, "A completed reveal must be replayable.");
         CloseScreen();
         yield return null;
@@ -201,6 +243,7 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
         Click(confirmButton);
         Click(abilityButton);
         Click(revealButton);
+        yield return new WaitForEndOfFrame();
         foreach (var instance in new[] { confirm, cooldown, reward })
         {
             Require(instance.animator.GetCurrentAnimatorStateInfo(0).IsName(instance.effect.reducedState) && instance.Visible,
@@ -227,62 +270,74 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
         SaveCapture("settled.png");
     }
 
-    private void SetUpScreen()
+    private void SetUpScreen(bool light = false, Rect? safeArea = null)
     {
+        lightTheme = light;
+        essentialLabels.Clear();
+        if (screenOwner)
+        {
+            screenOwner.SetActive(false);
+            Destroy(screenOwner);
+        }
+        screenOwner = new GameObject("Overlay pilot screen");
         font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         var camera = new GameObject("Backdrop camera").AddComponent<Camera>();
+        camera.transform.SetParent(screenOwner.transform, false);
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = ColorOf("#0E1828");
-        new GameObject("Event System", typeof(EventSystem));
+        camera.backgroundColor = ColorOf(light ? "#EAF0F7" : "#0E1828");
+        new GameObject("Event System", typeof(EventSystem)).transform.SetParent(screenOwner.transform, false);
         var canvas = new GameObject("Overlay Canvas", typeof(RectTransform), typeof(Canvas),
             typeof(CanvasScaler), typeof(GraphicRaycaster));
+        canvas.transform.SetParent(screenOwner.transform, false);
         canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
         var scaler = canvas.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(480, 854);
-        var content = Rect(canvas.transform, "UI", 0, 0, 1, 1);
+        Rect area = safeArea ?? new Rect(0, 0, Screen.width, Screen.height);
+        var content = Rect(canvas.transform, "Safe area", area.xMin / Screen.width, area.yMin / Screen.height,
+            area.xMax / Screen.width, area.yMax / Screen.height);
         screen = content.gameObject;
 
         Label(content, "Outpost inventory", 36, 0.07f, 0.87f, 0.93f, 0.96f, TextAnchor.MiddleLeft);
         Label(content, "LOADOUT", 15, 0.07f, 0.82f, 0.93f, 0.87f, TextAnchor.MiddleLeft);
-        var menu = Panel(content, "Loadout panel", "#1A2940", 0.06f, 0.66f, 0.94f, 0.82f);
-        confirmButton = AddButton(menu, "Equip button", "#225750", 0.13f, 0.25f, 0.87f, 0.76f);
+        var menu = Panel(content, "Loadout panel", light ? "#D5E0EC" : "#1A2940", 0.06f, 0.66f, 0.94f, 0.82f);
+        confirmButton = AddButton(menu, "Equip button", light ? "#A5DBCD" : "#225750", 0.13f, 0.25f, 0.87f, 0.76f);
         confirmLabel = Label(confirmButton.transform, "Equip", 27, 0, 0, 1, 1);
         confirm = Mount(effects[0], confirmButton.transform);
         confirmButton.onClick.AddListener(() =>
         {
             confirmedClicks++;
-            confirm.Play(reducedMotion);
+            if (effectsEnabled) confirm.Play(reducedMotion);
         });
 
         Label(content, "ABILITY HUD", 15, 0.07f, 0.58f, 0.93f, 0.63f, TextAnchor.MiddleLeft);
-        var hud = Panel(content, "Ability panel", "#1A2940", 0.06f, 0.43f, 0.94f, 0.58f);
+        var hud = Panel(content, "Ability panel", light ? "#D5E0EC" : "#1A2940", 0.06f, 0.43f, 0.94f, 0.58f);
         hud.gameObject.AddComponent<RectMask2D>();
-        abilityButton = AddButton(hud, "Ability button", "#253E5D", 0.17f, 0.25f, 0.31f, 0.72f);
-        readyIcon = Panel(abilityButton.transform, "Ability icon", "#91CAE5", 0.32f, 0.32f, 0.68f, 0.68f).GetComponent<Image>();
+        abilityButton = AddButton(hud, "Ability button", light ? "#B5CADE" : "#253E5D", 0.17f, 0.25f, 0.31f, 0.72f);
+        readyIcon = Panel(abilityButton.transform, "Ability icon", light ? "#37668A" : "#91CAE5", 0.32f, 0.32f, 0.68f, 0.68f).GetComponent<Image>();
         readyIcon.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
         readyLabel = Label(hud, "CHARGING", 24, 0.42f, 0.25f, 0.93f, 0.73f, TextAnchor.MiddleLeft);
         cooldown = Mount(effects[1], abilityButton.transform);
         abilityButton.onClick.AddListener(() =>
         {
-            readyIcon.color = ColorOf("#AFF3FF");
+            readyIcon.color = ColorOf(light ? "#165D74" : "#AFF3FF");
             readyLabel.text = "READY";
-            cooldown.Play(reducedMotion);
+            if (effectsEnabled) cooldown.Play(reducedMotion);
         });
 
         Label(content, "MISSION REWARD", 15, 0.07f, 0.36f, 0.93f, 0.41f, TextAnchor.MiddleLeft);
-        var rewardPanel = Panel(content, "Reward panel", "#1A2940", 0.06f, 0.08f, 0.94f, 0.36f);
-        var card = Panel(rewardPanel, "Reward card", "#4A3526", 0.23f, 0.39f, 0.77f, 0.78f);
+        var rewardPanel = Panel(content, "Reward panel", light ? "#D5E0EC" : "#1A2940", 0.06f, 0.08f, 0.94f, 0.36f);
+        var card = Panel(rewardPanel, "Reward card", light ? "#F1D7A9" : "#4A3526", 0.23f, 0.39f, 0.77f, 0.78f);
         amount = Label(card, "—", 36, 0, 0, 1, 1);
         reward = Mount(effects[2], card);
-        revealButton = AddButton(rewardPanel, "Reveal button", "#5A4530", 0.15f, 0.08f, 0.49f, 0.27f);
+        revealButton = AddButton(rewardPanel, "Reveal button", light ? "#E6C895" : "#5A4530", 0.15f, 0.08f, 0.49f, 0.27f);
         Label(revealButton.transform, "Reveal", 20, 0, 0, 1, 1);
         revealButton.onClick.AddListener(() =>
         {
             amount.text = "+250";
-            reward.Play(reducedMotion);
+            if (effectsEnabled) reward.Play(reducedMotion);
         });
-        skipButton = AddButton(rewardPanel, "Skip button", "#293A52", 0.51f, 0.08f, 0.85f, 0.27f);
+        skipButton = AddButton(rewardPanel, "Skip button", light ? "#BFCEDF" : "#293A52", 0.51f, 0.08f, 0.85f, 0.27f);
         Label(skipButton.transform, "Skip", 20, 0, 0, 1, 1);
         skipButton.onClick.AddListener(reward.Cancel);
     }
@@ -312,7 +367,7 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
         var hits = new List<RaycastResult>();
         EventSystem.current.RaycastAll(pointer, hits);
         Require(hits.Count > 0 && ExecuteEvents.GetEventHandler<IPointerClickHandler>(hits[0].gameObject) == button.gameObject,
-            $"The effect blocked pointer input to '{button.name}'.");
+            $"Pointer raycast to '{button.name}' hit {(hits.Count == 0 ? "no graphic" : hits[0].gameObject.name)}.");
         ExecuteEvents.ExecuteHierarchy(hits[0].gameObject, pointer, ExecuteEvents.pointerDownHandler);
         ExecuteEvents.Execute(button.gameObject, pointer, ExecuteEvents.pointerUpHandler);
         ExecuteEvents.Execute(button.gameObject, pointer, ExecuteEvents.pointerClickHandler);
@@ -341,7 +396,7 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
 
     private static float Progress(Instance instance) => instance.animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
 
-    private void SaveCapture(string name)
+    private void SaveCapture(string name, bool record = true)
     {
         var texture = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
         var previous = RenderTexture.active;
@@ -350,7 +405,7 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
             RenderTexture.active = null;
             texture.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0, false);
             File.WriteAllBytes(Path.Combine(output, name), texture.EncodeToPNG());
-            captures.Add(name);
+            if (record) captures.Add(name);
         }
         finally
         {
@@ -367,9 +422,10 @@ public sealed class UiEffectsPlayCheck : MonoBehaviour
         label.fontStyle = FontStyle.Bold;
         label.fontSize = size;
         label.text = text;
-        label.color = ColorOf("#F2F5FB");
+        label.color = ColorOf(lightTheme ? "#14243A" : "#F2F5FB");
         label.alignment = alignment;
         label.raycastTarget = false;
+        essentialLabels.Add(label);
         return label;
     }
 

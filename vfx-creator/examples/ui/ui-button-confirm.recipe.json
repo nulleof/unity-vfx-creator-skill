@@ -2,29 +2,18 @@
   "version": 1,
   "layers": [
     {
-      "name": "Mint wash",
-      "shape": "glow",
-      "color": "#57CDB1",
-      "size": {"x":0.92,"y":1.06},
-      "standard": [
-        {"time":0,"position":{"x":0.46,"y":0.5},"scale":0.65,"opacity":0.32},
-        {"time":0.055,"position":{"x":0.53,"y":0.5},"scale":1,"opacity":0.78},
-        {"time":0.2,"position":{"x":0.65,"y":0.5},"scale":1.15,"opacity":0}
-      ]
-    },
-    {
       "name": "Confirmation glint",
       "shape": "star",
       "color": "#C1FFF0",
       "size": {"x":0.48,"y":0.6},
       "standard": [
-        {"time":0,"position":{"x":0.44,"y":0.53},"scale":0.72,"opacity":0.62},
+        {"time":0,"position":{"x":0.49,"y":0.53},"scale":1,"opacity":0.62},
         {"time":0.035,"position":{"x":0.49,"y":0.53},"scale":1,"opacity":0.96},
-        {"time":0.2,"position":{"x":0.57,"y":0.53},"scale":0.78,"opacity":0}
+        {"time":0.2,"position":{"x":0.49,"y":0.53},"scale":1,"opacity":0}
       ],
       "reduced": {
-        "position": {"x":0.5,"y":0.53},
-        "scale": 0.82,
+        "position": {"x":0.49,"y":0.53},
+        "scale": 1,
         "keys": [
           {"time":0,"opacity":0.54},
           {"time":0.14,"opacity":0}

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "ui-reward-reveal",
-  "description": "A honey-gold halo and sparse outward sparks frame the reward card. The amount is the focal point and remains visible.",
+  "description": "A honey-gold halo brightens and fades behind the reward card. The amount is the focal point and remains visible.",
   "trigger": "A reward becomes available to reveal.",
   "target": "Reward amount card",
   "anchor": {

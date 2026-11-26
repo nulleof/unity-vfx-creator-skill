@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "ui-button-confirm",
-  "description": "A short mint glint and soft wash near the button's leading edge. Keep the label and pressed state clear.",
+  "description": "A short mint glint near the button's leading edge. Keep the label and pressed state clear.",
   "trigger": "The button action is accepted.",
   "target": "Confirmed action button",
   "anchor": {

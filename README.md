@@ -110,7 +110,16 @@ Run the UI pilot in a disposable Unity 6000.6.8f1 URP project with uGUI. The fix
 pwsh -File tests/Test-UiEffects.ps1 -UnityProject '<path-to-a-disposable-urp-project>'
 ```
 
-See `.vfx-work/ui-effect-tests-*/` for the standard, reduced-motion, skipped and settled frames, the playback report and the logs.
+See `.vfx-work/ui-effect-tests-*/` for the playback report, logs and captures. The `compact/` and `tall/` folders contain peak composites in both themes and motion modes. Each `compact/motion/` sequence is a set of 60 FPS frames for reviewing individual effects and rapid overlapping feedback. Check the button, ability state and reward amount for readability throughout playback.
+
+To run the same fixture on a portrait Android phone, install Unity's Android Build Support for 6000.6.8f1, put `adb` on your path, and connect and unlock the phone. Keep it in the foreground during sampling.
+
+```powershell
+pwsh -File tests/Test-UiEffects.ps1 -UnityProject '<path-to-a-disposable-urp-project>' -Android
+pwsh -File tests/Invoke-UiEffectsAndroid.ps1 -Apk '<reported path to OverlayPilot.apk>'
+```
+
+Use `-Serial` when more than one Android device is connected. The development APK uses Vulkan on ARM64 and installs as `org.vfxcreator.overlayreview`. A pause or loss of focus interrupts profiling so measurements can be collected again from a fresh run. Results include native-resolution composites, the measured safe area, three paired runs with 480 frames per pass after warm-up, and the budget verdict. Each metric needs at least 432 samples per pass. The fixture budgets the p95 increase in every pair at 1 ms each for CPU and GPU and 0.5 ms for `Canvas.BuildBatch`. CPU takes the longer of the main and render thread times per frame. The report also records frame pacing against the 60 FPS target. Keep a metric open when the device cannot report it.
 
 Use a disposable Unity 6000.6.8f1 URP project to build and preview the three [gameplay examples](evals/gameplay-briefs.json) from an installed copy, test failed builds, and verify playback in Play Mode.
 

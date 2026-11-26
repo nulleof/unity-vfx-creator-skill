@@ -120,6 +120,7 @@ namespace VfxCreator.Editor
                 var idle = new AnimationClip { name = Idle, frameRate = 60 };
                 var standard = new AnimationClip { name = Standard, frameRate = 60 };
                 var reduced = new AnimationClip { name = Reduced, frameRate = 60 };
+                var clips = new[] { idle, standard, reduced };
                 var sprites = new Dictionary<string, Sprite>(StringComparer.Ordinal);
                 foreach (var layer in layers)
                 {
@@ -144,19 +145,18 @@ namespace VfxCreator.Editor
                     SetRect(rect, rest.position, layer.size);
                     rect.localScale = new Vector3(rest.scale, rest.scale, 1);
                     string path = AnimationUtility.CalculateTransformPath(rect, root.transform);
-                    Animate(idle, path, layer.size, new[] { rest, rest.At(1f / 60, 0) });
-                    Animate(standard, path, layer.size, layer.standard);
+                    var idlePoses = new[] { rest, rest.At(1f / 60, 0) };
                     var fade = layer.reduced;
                     var reducedPoses = fade?.keys is not { Length: > 0 }
-                        ? new[] { rest, rest.At(1f / 60, 0) }
+                        ? idlePoses
                         : fade.keys.Select(key => new Pose
                         {
                             time = key.time, position = fade.position, scale = fade.scale, opacity = key.opacity
                         }).ToArray();
-                    Animate(reduced, path, layer.size, reducedPoses);
+                    Animate(clips, path, layer.size, new[] { idlePoses, layer.standard, reducedPoses });
                 }
 
-                foreach (var clip in new[] { idle, standard, reduced })
+                foreach (var clip in clips)
                     AssetDatabase.CreateAsset(clip, $"{staged.WorkPath}/{clip.name}.anim");
                 var animator = root.GetComponent<Animator>();
                 animator.runtimeAnimatorController = CreateController(staged.WorkPath, idle, standard, reduced);
@@ -225,16 +225,35 @@ namespace VfxCreator.Editor
                 throw new IOException($"Could not import the generated sprite '{path}'.");
         }
 
-        private static void Animate(AnimationClip clip, string path, Vector2 size, Pose[] poses)
+        private static void Animate(AnimationClip[] clips, string path, Vector2 size, Pose[][] tracks)
         {
             Vector2 half = size * 0.5f;
-            Bind(clip, path, typeof(RectTransform), "m_AnchorMin.x", poses, pose => pose.position.x - half.x);
-            Bind(clip, path, typeof(RectTransform), "m_AnchorMin.y", poses, pose => pose.position.y - half.y);
-            Bind(clip, path, typeof(RectTransform), "m_AnchorMax.x", poses, pose => pose.position.x + half.x);
-            Bind(clip, path, typeof(RectTransform), "m_AnchorMax.y", poses, pose => pose.position.y + half.y);
-            Bind(clip, path, typeof(RectTransform), "m_LocalScale.x", poses, pose => pose.scale);
-            Bind(clip, path, typeof(RectTransform), "m_LocalScale.y", poses, pose => pose.scale);
-            Bind(clip, path, typeof(CanvasGroup), "m_Alpha", poses, pose => pose.opacity);
+            Pose rest = tracks[0][0];
+            bool movesX = tracks.Any(track => track.Any(pose => pose.position.x != rest.position.x));
+            bool movesY = tracks.Any(track => track.Any(pose => pose.position.y != rest.position.y));
+            bool scales = tracks.Any(track => track.Any(pose => pose.scale != rest.scale));
+            // Keep static transforms on the prefab and bind moving properties in every clip so Idle restores the pose.
+            for (int index = 0; index < clips.Length; index++)
+            {
+                var clip = clips[index];
+                var poses = tracks[index];
+                if (movesX)
+                {
+                    Bind(clip, path, typeof(RectTransform), "m_AnchorMin.x", poses, pose => pose.position.x - half.x);
+                    Bind(clip, path, typeof(RectTransform), "m_AnchorMax.x", poses, pose => pose.position.x + half.x);
+                }
+                if (movesY)
+                {
+                    Bind(clip, path, typeof(RectTransform), "m_AnchorMin.y", poses, pose => pose.position.y - half.y);
+                    Bind(clip, path, typeof(RectTransform), "m_AnchorMax.y", poses, pose => pose.position.y + half.y);
+                }
+                if (scales)
+                {
+                    Bind(clip, path, typeof(RectTransform), "m_LocalScale.x", poses, pose => pose.scale);
+                    Bind(clip, path, typeof(RectTransform), "m_LocalScale.y", poses, pose => pose.scale);
+                }
+                Bind(clip, path, typeof(CanvasGroup), "m_Alpha", poses, pose => pose.opacity);
+            }
         }
 
         private static void Bind(AnimationClip clip, string path, Type component, string property, Pose[] poses, Func<Pose, float> value)

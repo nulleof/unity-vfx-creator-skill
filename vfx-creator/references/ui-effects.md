@@ -35,16 +35,16 @@ The receipt points to the original `recipe`, the project-relative `prefab`, and 
 
 Instantiate one prefab under the target's `RectTransform`. The prefab stretches to that rectangle. If a layout group positions the target's children, mount the prefab inside a dedicated host sized to fill the target and excluded from that layout. Set the effect or host as the first or last sibling according to `placement.order`. For `inherit`, place the host inside the existing mask. Use the Canvas that owns the target's content and input.
 
-At the game event, update the persistent UI state first. On the active effect instance, apply `placement.retrigger` and play the state for the game's current motion setting. Use the full state names from the handoff.
+At the game event, update the persistent UI state first. Queue the Animator state during input handling or `Update` so Unity samples it before rendering. Use the full state names from the handoff. Keep `lastStartFrame` on the effect instance, initialize it to `-1`, and use it to handle multiple events before Unity evaluates the next state.
 
 ```csharp
-if (allowRestart || animator.GetCurrentAnimatorStateInfo(0).IsName(idleState))
+if (allowRestart || (lastStartFrame != Time.frameCount && animator.GetCurrentAnimatorStateInfo(0).IsName(idleState)))
 {
     animator.Play(reducedMotion ? reducedState : standardState, 0, 0f);
-    animator.Update(0f);
+    lastStartFrame = Time.frameCount;
 }
 ```
 
-Both variants return to the hidden `Idle` state automatically and animate even while the game is paused. On skip or before hiding the UI, call `animator.Play(idleState, 0, 0f)` followed by `animator.Update(0f)` to clear the effect immediately. Leave the outcome visible until the game's UI state changes.
+Both variants return to the hidden `Idle` state automatically and animate even while the game is paused. For immediate clearing on skip or before hiding the UI, call `animator.Play(idleState, 0, 0f)` followed by `animator.Update(0f)` and reset `lastStartFrame` to `-1`. Leave the outcome visible until the game's UI state changes.
 
 Review in the target Canvas at gameplay speed. Trigger several quick actions and play overlapping cues. Verify that taps still reach the controls, masks and sorting behave in context, the result stays readable, and closing and reopening the screen starts with a clean effect.

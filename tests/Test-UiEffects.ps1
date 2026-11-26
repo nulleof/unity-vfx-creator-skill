@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$UnityProject,
-    [string]$Editor = 'C:/Program Files/Unity/Hub/Editor/6000.6.8f1/Editor/Unity.exe'
+    [string]$Editor = 'C:/Program Files/Unity/Hub/Editor/6000.6.8f1/Editor/Unity.exe',
+    [switch]$Android
 )
 
 $ErrorActionPreference = 'Stop'
@@ -73,7 +74,8 @@ $invalid.retrigger = 'queue'
 $invalidPath = Write-Input 'invalid-retrigger' $invalid
 Assert-Failure { & $pipeline BuildUi -Project $missing -UiBrief $invalidPath -Recipe $buttonRecipe } 'UI brief.retrigger'
 $invalidRecipe = Get-Content -LiteralPath $buttonRecipe -Raw | ConvertFrom-Json -AsHashtable
-$invalidRecipe.layers[1].reduced.keys[0].position = @{ x = 0; y = 0 }
+$reducedLayer = $invalidRecipe.layers | Where-Object { $_.Contains('reduced') } | Select-Object -First 1
+$reducedLayer.reduced.keys[0].position = @{ x = 0; y = 0 }
 $invalidRecipePath = Write-Input 'reduced-motion-with-movement' $invalidRecipe
 Assert-Failure { & $pipeline BuildUi -Project $missing -UiBrief $buttonBrief -Recipe $invalidRecipePath } 'reduced.keys[0].position'
 
@@ -134,21 +136,55 @@ if ((Compare-Object $before @(Get-GeneratedNames)) -or
 $fixtureRoot = Join-Path $project "Assets/VfxCreatorUiCheck_$suffix"
 $fixtureEditor = Join-Path $fixtureRoot 'Editor'
 $fixtureRuntimeScript = Join-Path $fixtureRoot 'UiEffectsPlayCheck.cs'
+$fixtureReviewScript = Join-Path $fixtureRoot 'UiEffectsReview.cs'
 $fixtureEditorScript = Join-Path $fixtureEditor 'UiEffectsPlayerBuild.cs'
 $fixtureScene = Join-Path $fixtureRoot 'OverlayPilot.unity'
 $player = Join-Path $work 'player/OverlayPilot.exe'
+$apk = Join-Path $work 'player/OverlayPilot.apk'
 $buildLog = Join-Path $work 'player-build.log'
 $runLog = Join-Path $work 'play-mode.log'
 $manifest = Write-Input 'player-input' @{
     effects = $effects
     scene = "Assets/VfxCreatorUiCheck_$suffix/OverlayPilot.unity"
     player = $player
+    androidPlayer = $apk
+}
+function Test-MobileReview([int]$Height, [string]$Layout, [switch]$MotionFrames) {
+    $directory = Join-Path $work $Layout
+    [void][IO.Directory]::CreateDirectory($directory)
+    $log = Join-Path $directory 'player.log'
+    $flags = @('-screen-width', '480', '-screen-height', "$Height", '-screen-fullscreen', '0',
+        '-popupwindow', '-vfxUiReviewOutput', $directory, '-vfxUiMobileReview', '-logFile', $log)
+    if ($MotionFrames) { $flags += '-vfxUiMotionFrames' }
+    Invoke-CheckProcess $player $flags $log 180
+    $report = Get-Content -LiteralPath (Join-Path $directory 'review.json') -Raw | ConvertFrom-Json -AsHashtable
+    if ($report.width -ne 480 -or $report.height -ne $Height -or $report.deviceSafeArea -or $report.captures.Count -ne 4 -or
+        (Select-String -LiteralPath $log -Pattern 'Exception:|Error:' -Quiet)) {
+        throw "Unexpected '$Layout' mobile review results. See '$log'."
+    }
+    foreach ($theme in 'dark', 'light') {
+        foreach ($mode in 'standard', 'reduced') {
+            $frame = "$theme-$mode-peak.png"
+            if ($frame -notin $report.captures -or !(Test-Path -LiteralPath (Join-Path $directory $frame) -PathType Leaf)) {
+                throw "Missing '$Layout' composite '$frame'."
+            }
+        }
+    }
+    if ($MotionFrames) {
+        foreach ($mode in 'standard', 'reduced') {
+            foreach ($sequence in 'confirm', 'ready', 'reward', 'overlap') {
+                $frames = @(Get-ChildItem -LiteralPath (Join-Path $directory "motion/$mode/$sequence") -Filter '*.png' -File)
+                if ($frames.Count -ne 90) { throw "Incomplete motion capture for '$mode/$sequence'." }
+            }
+        }
+    }
 }
 try {
     [void][IO.Directory]::CreateDirectory($fixtureEditor)
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'UiEffectsPlayCheck.cs') -Destination $fixtureRuntimeScript
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'UiEffectsReview.cs') -Destination $fixtureReviewScript
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'UiEffectsPlayerBuild.cs') -Destination $fixtureEditorScript
-    Invoke-CheckProcess $editorPath @('-batchmode', '-quit', '-projectPath', $project, '-executeMethod',
+    Invoke-CheckProcess $editorPath @('-batchmode', '-quit', '-projectPath', $project, '-buildTarget', 'Win64', '-executeMethod',
         'UiEffectsPlayerBuild.Run', '-vfxUiPlayerInput', $manifest, '-logFile', $buildLog) $buildLog 300
     if (!(Test-Path -LiteralPath $player -PathType Leaf)) { throw "Unity did not build the preview player. See '$buildLog'." }
     Invoke-CheckProcess $player @('-screen-width', '480', '-screen-height', '854', '-screen-fullscreen', '0',
@@ -161,8 +197,17 @@ try {
     foreach ($frame in $summary.captures) {
         if (!(Test-Path -LiteralPath (Join-Path $work $frame) -PathType Leaf)) { throw "Missing composite '$frame'." }
     }
+    Test-MobileReview 854 'compact' -MotionFrames
+    Test-MobileReview 1067 'tall'
+    if ($Android) {
+        $androidLog = Join-Path $work 'android-build.log'
+        Invoke-CheckProcess $editorPath @('-batchmode', '-quit', '-projectPath', $project, '-buildTarget', 'Android',
+            '-executeMethod', 'UiEffectsPlayerBuild.Run', '-vfxUiPlayerInput', $manifest, '-logFile', $androidLog) $androidLog 900
+        if (!(Test-Path -LiteralPath $apk -PathType Leaf)) { throw "Unity did not build the Android fixture. See '$androidLog'." }
+        Write-Output "Android review APK: $apk"
+    }
 } finally {
-    foreach ($file in @($fixtureRuntimeScript, $fixtureEditorScript, $fixtureScene, "$fixtureScene.meta",
+    foreach ($file in @($fixtureRuntimeScript, $fixtureReviewScript, "$fixtureReviewScript.meta", $fixtureEditorScript, $fixtureScene, "$fixtureScene.meta",
             "$fixtureEditorScript.meta", "$fixtureRuntimeScript.meta", "$fixtureEditor.meta", "$fixtureRoot.meta")) {
         if (Test-Path -LiteralPath $file -PathType Leaf) { Remove-Item -LiteralPath $file }
     }

@@ -19,17 +19,6 @@
           {"time":0.18,"opacity":0}
         ]
       }
-    },
-    {
-      "name": "Outer echo",
-      "shape": "ring",
-      "color": "#8CE6FF",
-      "size": {"x":1.08,"y":1.08},
-      "standard": [
-        {"time":0,"position":{"x":0.5,"y":0.5},"scale":0.96,"opacity":0},
-        {"time":0.11,"position":{"x":0.5,"y":0.5},"scale":1.05,"opacity":0.3},
-        {"time":0.38,"position":{"x":0.5,"y":0.5},"scale":1.44,"opacity":0}
-      ]
     }
   ]
 }
