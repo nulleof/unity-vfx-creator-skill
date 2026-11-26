@@ -8,4 +8,4 @@ The roles in the skill handle analysis, authoring and review. For a blind recons
 
 Run `pwsh -File tests/Test-VfxCreator.ps1` for the local workflow smoke test. See the README for the Unity integration and the five-pack evaluation.
 
-The repository owner authorizes agents to create local Git commits automatically after completing and verifying a task. Stage only the changes that belong to that task and use a descriptive commit message. Pushing commits and rewriting history require a separate request.
+The repository owner authorizes agents to create local Git commits automatically after completing and verifying a task. Stage only the changes that belong to that task and use a descriptive commit message. After each completed and verified skill improvement iteration, confirm the outgoing commits belong to that iteration, then publish them with a normal push to `origin/master` without asking again. Verify the remote commit after the push. Other pushes and history rewrites require a separate request.
