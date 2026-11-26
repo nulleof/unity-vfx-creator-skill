@@ -14,5 +14,21 @@
     "sampleTimesSec": [0.03, 0.1, 0.2, 0.5, 0.9, 1.4],
     "seeds": [1729, 1730, 1731],
     "acceptance": "The ice rim becomes legible on activation and stays calm and recognizable. Sparse crystals vary across seeds while the projected footprint remains stable."
+  },
+  {
+    "prompt": "Show a short amber arc that breaks into cinders around a target.",
+    "brief": "arc-flipbook.brief.json",
+    "recipe": "arc-flipbook.recipe.json",
+    "sampleTimesSec": [0.05, 0.1, 0.21, 0.3, 0.45, 0.7],
+    "seeds": [1729],
+    "acceptance": "The arc opens around a visible 0.8-unit target and reaches around twice its width. The contact flash peaks early. The ribbon breaks into slivers around a steady pivot, separate cinders outlast it, and the opening pose never returns during a single play. Check the gaps for stray pixels from adjacent atlas cells."
+  },
+  {
+    "prompt": "Release a wide turquoise wave with a crest that breaks into spray.",
+    "brief": "wave-flipbook.brief.json",
+    "recipe": "wave-flipbook.recipe.json",
+    "sampleTimesSec": [0.08, 0.15, 0.32, 0.45, 0.62, 0.82, 1],
+    "seeds": [1729],
+    "acceptance": "The release flash appears near the visible 0.8-unit caster. The traveling crest spans around five caster widths, breaks into separate segments, and leaves a fading wake. Its pivot follows the forward path without a jump and no pixels from neighboring atlas cells appear."
   }
 ]

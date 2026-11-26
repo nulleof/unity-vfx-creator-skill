@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "quality-wave-flipbook",
+  "description": "A pale teal charge releases a scalloped wave along the ground. In the inclined gameplay camera, use a caster 0.8 world units wide to judge scale. The wave's solid front grows to roughly 3.7 units wide by 1.45 high in projection. Allow up to about 4 units wide by 1.6 high with spray. The bright release at 0.15 s marks the start of travel. The wave reaches its widest point around 0.45 s, then the crest flattens and breaks while droplets finish in world space. The caster stays legible behind the wave, and the scene settles by 1 s.",
+  "mode": "oneShot",
+  "attachment": {
+    "anchor": "Place the prefab at the ground-level release point just in front of the caster.",
+    "orientation": "Local Y points up. Align local Z along the wave's travel."
+  },
+  "capture": { "size": 480, "fps": 60, "duration": 1.05, "framing": 5.5, "cameraPitch": 42, "seed": 1729 }
+}

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "quality-arc-flipbook",
+  "description": "A short amber arc opens around a stationary target. In the inclined gameplay camera, the target is 0.8 world units wide. The stroke opens to about 1.8 units wide by 1.2 high in projection. Allow up to about 2 units wide by 1.3 high with the flash and cinders. Start the arc at 0.05 s, mark contact with a pale flash at 0.10 s, and reach the widest stroke around 0.21 s. Break the stroke into thinner fragments, then let the separate cinders extinguish by 0.68 s. Keep the arc centered on the point of contact throughout.",
+  "mode": "oneShot",
+  "attachment": {
+    "anchor": "Place the prefab at the stationary contact point on the ground.",
+    "orientation": "Local Y is world up. The painted arc faces the gameplay camera."
+  },
+  "capture": { "size": 480, "fps": 60, "duration": 0.75, "framing": 4.1, "cameraPitch": 42, "seed": 1729 }
+}

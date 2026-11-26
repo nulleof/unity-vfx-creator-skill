@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "id": "quality-arc-flipbook",
+  "title": "Splintering amber arc",
+  "description": "A bronze-edged ribbon opens, peaks and breaks into slivers. A contact flash and drifting cinders play on separate beats.",
+  "duration": 0.75,
+  "seed": 1729,
+  "layers": [
+    {
+      "name": "Opening amber ribbon",
+      "phase": "sweep",
+      "position": { "x": 0.1, "y": 0.59, "z": -0.22 },
+      "texture": { "png": "flipbook-arc.png", "tilesX": 4, "tilesY": 4 },
+      "blend": "alpha",
+      "glow": 0.84,
+      "size": { "max": 2.24 },
+      "lifetime": { "max": 0.32 },
+      "maxScreenSize": 1,
+      "maxParticles": 1,
+      "bursts": [{ "time": 0.05 }],
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 0.8 }, { "time": 0.12, "value": 1 }, { "time": 0.65, "value": 1 }, { "time": 1, "value": 0.1 }] }
+      }
+    },
+    {
+      "name": "Pale contact flash",
+      "phase": "contact",
+      "position": { "x": -0.28, "y": 0.66, "z": -0.28 },
+      "texture": { "kind": "star", "spokes": 4, "detail": 0.42, "falloff": 0.5 },
+      "tint": { "r": 1, "g": 0.91, "b": 0.72, "a": 0.98 },
+      "glow": 3.1,
+      "size": { "max": 0.95 },
+      "rotation": { "max": 0.42 },
+      "lifetime": { "max": 0.085 },
+      "maxParticles": 1,
+      "bursts": [{ "time": 0.1 }],
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 1 }, { "time": 0.29, "value": 0.88 }, { "time": 1, "value": 0 }] }
+      }
+    },
+    {
+      "name": "Loose cinders",
+      "phase": "residue",
+      "position": { "x": 0.27, "y": 0.42, "z": -0.14 },
+      "worldSpace": true,
+      "shape": { "type": "Sphere", "radius": 0.27 },
+      "texture": { "kind": "spark", "falloff": 0.72 },
+      "tint": { "r": 1, "g": 0.52, "b": 0.24, "a": 0.96 },
+      "glow": 1.25,
+      "size": { "mode": "twoConstants", "min": 0.055, "max": 0.18 },
+      "speed": { "mode": "twoConstants", "min": 0.85, "max": 2.1 },
+      "gravity": { "max": 0.36 },
+      "lifetime": { "mode": "twoConstants", "min": 0.36, "max": 0.53 },
+      "maxParticles": 11,
+      "bursts": [{ "time": 0.14, "count": { "max": 11 } }],
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 0.78 }, { "time": 0.38, "value": 0.82 }, { "time": 1, "value": 0 }] }
+      }
+    }
+  ]
+}

@@ -110,6 +110,17 @@ pwsh -File tests/Test-VfxBatch.ps1 -UnityProject '<path-to-a-disposable-urp-proj
 
 To compare visual quality, give fresh authoring sessions the same three prompts and matched capture settings. Allow one round of revisions in each session using its own draft captures. Compare the final contact sheets anonymously after both sets of prefabs have been exported. [Batch quality prompts](evals/batch-quality.json)
 
+The [visual quality cases](evals/visual-quality/cases.json) include an amber arc with a fading cinder layer and a wide wave with a breaking front. Build the two flipbook recipes in a disposable Unity 6000.6.8f1 URP project. The original PNGs sit beside their recipes. For gameplay review, place a reference object 0.8 world units wide in the effect's camera and inspect the sample times in the manifest.
+
+```powershell
+$project = '<path-to-a-disposable-urp-project>'
+$fixtures = './evals/visual-quality'
+foreach ($shape in 'arc', 'wave') {
+    & ./vfx-creator/scripts/vfx.ps1 Build -Project $project -ResourceRoot $fixtures `
+        -Recipe "$fixtures/$shape-flipbook.recipe.json" -EffectBrief "$fixtures/$shape-flipbook.brief.json"
+}
+```
+
 [`evals/cases.json`](evals/cases.json) defines five reconstruction examples and one catalog-expansion example. `evals/Invoke-Reconstruction.ps1` supports `Reference`, `Candidate`, `Review` and `Variant` stages. It writes local captures and HTML reports under `.vfx-work/` by default. Reference packages are not included; provide source packages that you are allowed to use.
 
 An optional accuracy evaluation is defined in [`evals/accuracy-cases.json`](evals/accuracy-cases.json). `evals/Invoke-Accuracy.ps1` captures the teleport and aura references, renders candidates and compares them. Candidate runs use four clean URP projects named `old-teleport`, `new-teleport`, `old-aura` and `new-aura` under the results directory. After the reference and render/compare stages, run:

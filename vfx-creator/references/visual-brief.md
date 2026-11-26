@@ -4,9 +4,9 @@ A brief describes one effect with one attachment and playback mode. The caller o
 
 Use these criteria to turn a short request into decisions:
 
-- **Strongest moment.** For a hit or activation, choose the event that should get the player's attention. Specify when it happens and the change in size, contrast, speed or shape that makes it stand out. A multi-beat one-shot has one main accent. A sustained effect needs a readable appearance, stable identity and a deliberate release.
-- **Silhouette and scale.** Set the main shape and its projected size relative to a character, target or gameplay area. Leave space around it so accents and the background do not obscure its read.
-- **Rhythm and mass.** Set the relationship between anticipation, movement, contact and decay. Give the main body, trail, smoke and fragments timings that reflect their different weight and roles.
+- **Strongest moment.** For a hit or activation, record the event time, the brightest moment, the widest readable silhouette and the visible end. The brightest moment can mark contact while the silhouette keeps expanding. A multi-beat one-shot has one main accent. A sustained effect needs a readable appearance, stable identity and a deliberate release.
+- **Silhouette and scale.** Name a scale reference in the gameplay camera, such as the character's body, target, object base or area of effect. In the description, give the projected width and height of the defining shape at its widest readable moment and the full visible reach including the halo, wake and particles. Express these as a ratio to the reference or give dimensions in the same view. Start a strong local accent near the size of its reference and try a larger version. Size a wave to the gameplay area it communicates. For a sustained effect, keep the object and its motion readable throughout.
+- **Rhythm and mass.** Set the relationship between anticipation, movement, contact and decay. Give the main body, flash, trail and fragments their own timing. State which layers follow the object and which remain where they were emitted. For a loop, describe the transition between repeats and the release.
 - **Visual character.** Use color, edge quality, light and movement to describe the same material or kind of energy. Put the strongest accent at the gameplay event.
 - **Bounded variation.** Decide what changes between uses, such as initial orientation, spin, directions, ray lengths or accent timing. Keep the event time, point of contact and gameplay bounds precise.
 - **Intentional asymmetry.** Natural flashes can use a dense core, a few dominant rays and shorter rays at uneven angles. Keep regular geometry when it communicates the intended material, pattern or status.
@@ -15,7 +15,7 @@ Use these criteria to turn a short request into decisions:
 {
   "version": 1,
   "id": "frost-status-aura",
-  "description": "A thin mint ring 1.2 Unity units across, with sparse rising ice chips. Readable from above. Fade within half a second of status removal.",
+  "description": "A thin mint ring just wider than the affected character from the overhead gameplay camera. The ring is 1.2 Unity units across. Sparse rising chips extend the total width to 1.5 units. The ring follows the character's feet. Emitted chips stay in world space. Fade within half a second of status removal.",
   "mode": "loop",
   "attachment": {
     "anchor": "Follow the affected character's feet",
