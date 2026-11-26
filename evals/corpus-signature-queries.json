@@ -1,0 +1,8 @@
+[
+  {"id":"01","signature":{"mode":"oneShot","silhouette":"specks","motion":"expand","beatCount":1,"visibleDurationSec":1.4}},
+  {"id":"02","signature":{"silhouette":"ring","motion":"drift"}},
+  {"id":"03","signature":{"silhouette":"star","motion":"travel"}},
+  {"id":"04","signature":{"mode":"oneShot","silhouette":"star","motion":"contract","beatCount":1,"visibleDurationSec":0.5}},
+  {"id":"05","signature":{"silhouette":"vortex","motion":"rotate","beatCount":2}},
+  {"id":"06","signature":{"silhouette":"angular","motion":"rotate"}}
+]

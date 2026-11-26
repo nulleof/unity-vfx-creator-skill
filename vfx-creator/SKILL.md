@@ -10,7 +10,7 @@ This folder is the whole skill. Use PowerShell 7.4+ and an installed Unity edito
 ## Create or adapt
 
 1. Read the [visual brief and playback format](references/visual-brief.md), [authoring](roles/author.md) and the [recipe format](references/recipes.md). Use the supplied visual brief or write one from the request. The calling chat supplies the intended appearance, trigger context and attachment. Design the effect and hand back the result for that chat to connect to gameplay.
-2. Run `Find` with the description and start with the best-matching silhouette, motion and lifetime. Draft the phases and shapes in a recipe. Reuse useful layers and synthesize defining shapes wherever needed. Build a draft with `Build -Recipe <path> -EffectBrief <path>` under a distinct ID.
+2. Run `Find` with the description and any [visual signature](references/signatures.md) fields supplied by the brief. Start with the best-matching silhouette, motion and lifetime. Draft the phases and shapes in a recipe. Reuse useful layers and synthesize defining shapes wherever needed. Build a draft with `Build -Recipe <path> -EffectBrief <path>` under a distinct ID.
 3. Review the draft frames and `capture.json` against the brief. Tune projected size, timing, motion and brightness. Build under the requested final ID and inspect the final capture as described in [review](roles/review.md). Return the editable recipe, prefab, preview and `effect.json` with the runtime playback instructions.
 
 ## Learn

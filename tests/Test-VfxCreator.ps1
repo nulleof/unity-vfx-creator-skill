@@ -32,6 +32,37 @@ foreach ($case in $cases) {
         if ($list.Count -ne 1) { throw "Expected one '$($case.prefab)' in '$pack'." }
     }
 }
+$profiles = Get-Content -LiteralPath (Join-Path $skill 'catalog-signatures.json') -Raw | ConvertFrom-Json -AsHashtable
+if (!$recipes.SetEquals([string[]]$profiles.Keys)) { throw 'Catalog signatures must cover the catalog recipe IDs.' }
+foreach ($id in $profiles.Keys) {
+    $signature = ConvertTo-Json -InputObject $profiles[$id] -Compress
+    $hits = @(& $pipeline Find -Brief 'zzznomatchingwords' -Signature $signature)
+    if ($id -notin $hits.id) { throw "Catalog signature for '$id' cannot retrieve its recipe." }
+}
+$corpus = Get-Content -LiteralPath (Join-Path $repo 'evals/corpus-briefs.json') -Raw | ConvertFrom-Json -AsHashtable
+$queries = Get-Content -LiteralPath (Join-Path $repo 'evals/corpus-signature-queries.json') -Raw | ConvertFrom-Json -AsHashtable
+foreach ($fixture in @(@{ id = '03'; first = 'toon-star-hit' }, @{ id = '04'; first = 'warm-flash' })) {
+    $brief = ($corpus | Where-Object id -eq $fixture.id).brief
+    $query = ($queries | Where-Object id -eq $fixture.id).signature | ConvertTo-Json -Compress
+    $legacy = & $pipeline Find -Brief $brief | Select-Object -First 1
+    $ranked = & $pipeline Find -Brief $brief -Signature $query | Select-Object -First 1
+    if ($legacy.id -ne 'blue-teal-teleport' -or $ranked.id -ne $fixture.first -or
+        !(Test-Path -LiteralPath $ranked.path -PathType Leaf)) {
+        throw "Unexpected text or signature ranking for '$($fixture.id)'."
+    }
+}
+$partial = @(& $pipeline Find -Brief 'zzznomatchingwords' -Signature '{"silhouette":"crescent"}')
+if ($partial.Count -ne 1 -or $partial[0].id -ne 'clean-sword-arc') {
+    throw 'A partial signature must retrieve a match without shared keywords.'
+}
+$timed = & $pipeline Find -Brief 'zzznomatchingwords' -Signature '{"beatCount":2,"visibleDurationSec":0.4}' |
+    Select-Object -First 1
+if ($timed.id -ne 'gold-shockwave-burst') { throw 'Phase count must break a tie before visible duration.' }
+foreach ($invalid in @('{}', '[]', '{"silhouette":"unknown"}', '{"Silhouette":"star"}', '{"beatCount":1.5}', '{"visibleDurationSec":0}')) {
+    $rejected = $false
+    try { & $pipeline Find -Brief 'flash' -Signature $invalid | Out-Null } catch { $rejected = $true }
+    if (!$rejected) { throw "Accepted an invalid signature $invalid." }
+}
 if ($UnityProject) {
     $target = (Get-Item -LiteralPath $UnityProject).FullName
     $skillDirectory = Join-Path $target '.agents/skills'
@@ -41,6 +72,9 @@ if ($UnityProject) {
         Copy-Item -LiteralPath $skill -Destination $installed -Recurse
     }
     $installedPipeline = Join-Path $installed 'scripts/vfx.ps1'
+    $installedHit = & $installedPipeline Find -Brief 'quick glint' -Signature '{"silhouette":"star","motion":"contract"}' |
+        Select-Object -First 1
+    if ($installedHit.id -ne 'warm-flash') { throw 'Installed signature search failed.' }
     $fixture = & $installedPipeline Find -Brief 'A compact lilac muzzle flash' | Select-Object -First 1
     $id = 'portable-smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
     $receipt = & $installedPipeline Build -Project $target -Recipe $fixture.path -Id $id -RenderAfterBuild -Size 192 -Fps 20 -Duration 0.6

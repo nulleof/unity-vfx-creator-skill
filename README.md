@@ -52,6 +52,13 @@ $vfx = './.agents/skills/vfx-creator/scripts/vfx.ps1'
 
 The pipeline also includes `Inventory`, `Learn`, `Render` and `Compare` actions. Run `& $vfx <Action> -?` for the parameters of an action. For a recipe-format reference, see [`vfx-creator/references/recipes.md`](vfx-creator/references/recipes.md). For workflow guidance, see [`vfx-creator/SKILL.md`](vfx-creator/SKILL.md).
 
+Use [visual signatures](vfx-creator/references/signatures.md) to prioritize shape, motion and timing when selecting an editable recipe.
+
+```powershell
+& $vfx Find -Brief 'a brief pale glint that quickly contracts' `
+    -Signature '{"mode":"oneShot","silhouette":"star","motion":"contract","visibleDurationSec":0.5}'
+```
+
 For a prefab you can trigger in gameplay, provide a [visual brief](vfx-creator/references/visual-brief.md) alongside the authored recipe.
 
 ```powershell
@@ -114,6 +121,27 @@ $results = '.vfx-work/corpus-iteration'
 Freeze the whole baseline skill before updating it. The author runner installs a disposable copy per run, builds a draft from the anonymous brief, shows the author their draft capture, then exports their final recipe and prefab. It uses Codex CLI and records token counts when returned. It can also run in `Prepare`, `Draft` and `Finalize` stages for fresh external author sessions. `Invoke-CorpusAuthors.ps1` resumes existing runs, so use a new results directory when changing recipes, briefs, model or capture settings.
 
 After both candidates are exported, give the reviewer only the anonymous contact sheets and, when needed, the side-by-side sequences under `review/<case>/`. Contact sheets use `System.Drawing.Common` on Windows. Save the reviewer's preference as `review/<case>/verdict.json` with `preference` set to `A`, `B` or `tie` and optional `notes`. Run `Measure-CorpusBenchmark.ps1` again with `-Stage Summarize` to record the verdicts, paired metrics, capture problems and measured resources in `benchmark.json`. The benchmark passes with six comparable, reviewed pairs, at least four visual preferences for the updated skill, a median foreground IoU gain of at least 0.05 and a median color error increase of at most 0.02.
+
+### Visual signatures
+
+Generate a local coverage report for the 30 learning representatives after the reference captures are ready. It records first, largest and last visible frames, projected dimensions, and the screen-space centroid at each visible frame. It uses the existing capture timeline or, for older captures, reconstructs foreground data from PNGs on Windows. Pass `-CaptureSummary` if a case uses a capture outside the standard references directory, such as distortion on a checkerboard. For a legacy scene capture, supply a recording that ends on the clean static backdrop.
+Pass `-TrialRoot '<learning-results>/reference-trials'` to include earlier invisible or clipped attempts.
+
+```powershell
+./evals/Measure-EffectSignatures.ps1 -Labels ./evals/corpus-signature-labels.json `
+    -CaptureRoot '<learning-results>/references' -Output '.vfx-work/signatures/corpus.json'
+```
+
+For the search benchmark, prepare all six holdout captures in a fresh results directory and pass the same frozen skill folder as both branches. The structured branch receives queries from `evals/corpus-signature-queries.json`, which were written from the anonymous briefs. Both branches use the same feedback mode and supply their three highest-ranked recipes in order.
+
+```powershell
+./evals/Invoke-CorpusAuthors.ps1 -ResultsRoot $results -BaselineSkill $frozenSkill `
+    -UpdatedSkill $frozenSkill -SignatureSearch
+./evals/Measure-CorpusBenchmark.ps1 -Stage Compare -ResultsRoot $results `
+    -Project '<comparison-project>' -SignatureSearch
+```
+
+Review the contact sheets in `blind-review/<case>/` after the paired candidates are exported. Save the verdict beside each sheet, then run `Measure-CorpusBenchmark.ps1 -SignatureSearch -Stage Summarize -ResultsRoot $results`. The report `signature-benchmark.json` uses the regular corpus pass threshold.
 
 ### Frame calibration pilot
 

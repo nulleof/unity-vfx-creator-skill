@@ -5,7 +5,8 @@ param(
     [string]$Manifest = (Join-Path $PSScriptRoot 'corpus-holdouts.json'),
     [string]$Project,
     [string[]]$CaseId,
-    [switch]$Calibration
+    [switch]$Calibration,
+    [switch]$SignatureSearch
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3
@@ -15,14 +16,16 @@ $pipeline = Join-Path (Split-Path -Parent $PSScriptRoot) 'vfx-creator/scripts/vf
 $allCases = @(Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json -AsHashtable)
 $cases = if ($CaseId) { @($allCases | Where-Object id -In $CaseId) } else { $allCases }
 if (!$cases.Count) { throw 'No cases were selected.' }
+if ($Calibration -and $SignatureSearch) { throw 'Select a single benchmark protocol.' }
 
 function Read-Json([string]$Path) {
     if (Test-Path -LiteralPath $Path -PathType Leaf) { Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable }
 }
 
 $assignments = @{}
-if ($Calibration) {
-    $assignmentPath = Join-Path $results 'calibration-labels.json'
+if ($Calibration -or $SignatureSearch) {
+    $assignmentFile = if ($Calibration) { 'calibration-labels.json' } else { 'signature-labels.json' }
+    $assignmentPath = Join-Path $results $assignmentFile
     $assignments = Read-Json $assignmentPath
     if (!$assignments -and $Stage -eq 'Compare') {
         $ids = @($allCases | ForEach-Object id | Get-Random -Shuffle)
@@ -42,10 +45,10 @@ if ($Calibration) {
             [IO.File]::Delete($temporary)
         }
     }
-    if (!$assignments) { throw 'Run Calibration Compare first to assign the review labels.' }
+    if (!$assignments) { throw 'Run Compare first to assign the review labels.' }
     foreach ($case in $allCases) {
-        if ($assignments[$case.id] -cnotin @('old', 'new') -or !$case['calibration']) {
-            throw "Calibration manifest or label assignment is missing data for '$($case.id)'."
+        if ($assignments[$case.id] -cnotin @('old', 'new') -or ($Calibration -and !$case['calibration'])) {
+            throw "The benchmark manifest or label assignment is missing data for '$($case.id)'."
         }
     }
 }
@@ -169,7 +172,7 @@ function Get-Timing($Comparison, $Case, [string]$Side) {
 $rows = @(foreach ($case in $cases) {
     $id = $case.id
     $caseIndex = [Array]::IndexOf($allCases, $case)
-    $oldAtA = if ($Calibration) { $assignments[$id] -eq 'old' } else { $caseIndex % 2 -eq 0 }
+    $oldAtA = if ($assignments.Count) { $assignments[$id] -eq 'old' } else { $caseIndex % 2 -eq 0 }
     $versions = if ($oldAtA) { [ordered]@{ A = 'old'; B = 'new' } } else { [ordered]@{ A = 'new'; B = 'old' } }
     $reference = Join-Path $results "references/$id"
     $refManifest = Read-Json (Join-Path $reference 'capture.json')
@@ -183,7 +186,7 @@ $rows = @(foreach ($case in $cases) {
         $captures[$label] = [ordered]@{ directory = $directory; status = (Get-CaptureStatus $manifestData); run = $run }
     }
     $reviewRoot = Join-Path $results "review/$id"
-    $reviewPacket = if ($Calibration) { Join-Path $results "blind-review/$id" } else { $reviewRoot }
+    $reviewPacket = if ($Calibration -or $SignatureSearch) { Join-Path $results "blind-review/$id" } else { $reviewRoot }
     $valid = $refStatus -eq 'valid' -and $captures.A.status -eq 'valid' -and $captures.B.status -eq 'valid'
     $metrics = @{}
     $comparison = $null
@@ -252,6 +255,12 @@ $rows = @(foreach ($case in $cases) {
         $row.calibrationGain = if ($scored) { $metrics.old.calibrationError - $metrics.new.calibrationError }
         $row.calibrationWin = $scored -and $preference -eq 'new' -and $row.calibrationGain -gt 0
     }
+    if ($SignatureSearch) {
+        $oldRun = $captures[$oldLabel].run
+        $newRun = $captures[$newLabel].run
+        $row.oldTopRecipes = if ($oldRun) { $oldRun['closestRecipeIds'] }
+        $row.newTopRecipes = if ($newRun) { $newRun['closestRecipeIds'] }
+    }
     $row
 })
 $scoredRows = @($rows | Where-Object { $_.scored })
@@ -288,6 +297,7 @@ $summary = [ordered]@{
 }
 $summary.passed = $summary.complete -and $newWins -ge 4 -and $iouGain -ge 0.05 -and $colorChange -le 0.02
 $summaryFile = 'benchmark.json'
+if ($SignatureSearch) { $summaryFile = 'signature-benchmark.json' }
 if ($Calibration) {
     $holdouts = @($allCases | Where-Object { !$_['rehearsal'] })
     $holdoutRows = @($rows | Where-Object { !$_.rehearsal })

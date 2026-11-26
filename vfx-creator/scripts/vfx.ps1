@@ -12,6 +12,7 @@ param(
     [string]$Prefab,
     [string]$Title,
     [string]$Brief,
+    [string]$Signature,
     [string]$Id,
     [string]$Recipe,
     [string]$Output,
@@ -41,6 +42,8 @@ Set-StrictMode -Version 3
 . "$PSScriptRoot/Archive.ps1"
 
 $skill = Split-Path -Parent $PSScriptRoot
+$hasSignature = $PSBoundParameters.ContainsKey('Signature')
+if ($hasSignature -and $Action -ne 'Find') { throw '-Signature is only supported by Find.' }
 
 $graphSchedule = $null
 if ($PSBoundParameters.ContainsKey('GraphEvents')) {
@@ -194,7 +197,11 @@ function Get-VfxTokens([string]$Value) {
 function Find-VfxRecipe {
     Require-VfxArgument 'Brief' $Brief
     $query = Get-VfxTokens $Brief
-    Get-ChildItem -LiteralPath (Join-Path $skill 'catalog') -Filter '*.json' -File | ForEach-Object {
+    $requested = if ($hasSignature) { Read-VfxSignature $Signature }
+    $profiles = if ($requested) {
+        Get-Content -LiteralPath (Join-Path $skill 'catalog-signatures.json') -Raw | ConvertFrom-Json -AsHashtable
+    }
+    $ranked = Get-ChildItem -LiteralPath (Join-Path $skill 'catalog') -Filter '*.json' -File | ForEach-Object {
         $file = $_
         $data = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json -AsHashtable
         $keyTokens = Get-VfxTokens ("$($data.title) " + ($data.tags -join ' '))
@@ -204,8 +211,66 @@ function Find-VfxRecipe {
             if ($word -in $keyTokens) { $score += 3 }
             elseif ($word -in $otherTokens) { $score++ }
         }
-        if ($score) { [pscustomobject]@{ score = $score; id = $data.id; title = $data.title; path = $file.FullName } }
-    } | Sort-Object -Property @{ Expression = 'score'; Descending = $true }, id
+        $result = [pscustomobject]@{ score = $score; id = $data.id; title = $data.title; path = $file.FullName }
+        if ($requested) {
+            $profile = $profiles[$data.id] ?? @{}
+            $same = $different = 0
+            foreach ($field in @('mode', 'silhouette', 'motion')) {
+                if (!$requested.Contains($field) -or !$profile.Contains($field)) { continue }
+                if ($requested[$field] -eq $profile[$field]) { $same++ } else { $different++ }
+            }
+            $beatDistance = Get-VfxSignatureDistance $requested $profile 'beatCount'
+            $durationDistance = Get-VfxSignatureDistance $requested $profile 'visibleDurationSec'
+            if ($score -or $same -or [double]::IsFinite($beatDistance) -or [double]::IsFinite($durationDistance)) {
+                [pscustomobject]@{
+                    result = $result; matches = $same; conflicts = $different
+                    beatDistance = $beatDistance; durationDistance = $durationDistance
+                }
+            }
+        } elseif ($score) { $result }
+    }
+    if ($requested) {
+        $ranked | Sort-Object @{ Expression = 'matches'; Descending = $true }, conflicts, beatDistance, durationDistance,
+            @{ Expression = { $_.result.score }; Descending = $true }, @{ Expression = { $_.result.id } } |
+            ForEach-Object result
+    } else {
+        $ranked | Sort-Object @{ Expression = 'score'; Descending = $true }, id
+    }
+}
+
+function Read-VfxSignature([string]$Json) {
+    if ([string]::IsNullOrWhiteSpace($Json)) { throw '-Signature needs a nonempty JSON object.' }
+    $data = ConvertFrom-Json -InputObject $Json -AsHashtable -NoEnumerate
+    if ($data -isnot [System.Collections.IDictionary] -or !$data.Count) {
+        throw '-Signature needs a nonempty JSON object.'
+    }
+    $choices = @{
+        mode = 'oneShot', 'loop', 'trail'
+        silhouette = 'star', 'ring', 'vortex', 'cloud', 'crescent', 'specks', 'angular', 'orb', 'beam', 'column', 'text', 'ribbon', 'figurative'
+        motion = 'hold', 'travel', 'expand', 'contract', 'rotate', 'drift', 'sweep', 'rise', 'fall'
+    }
+    foreach ($field in $data.Keys) {
+        $value = $data[$field]
+        if ($choices.Keys -ccontains $field) {
+            if ($value -isnot [string] -or $value -notin $choices[$field]) {
+                throw "Invalid -Signature $field. Expected one of: $($choices[$field] -join ', ')."
+            }
+        } elseif ($field -ceq 'beatCount') {
+            if ($value -isnot [long] -or $value -lt 1) { throw '-Signature beatCount must be a positive integer.' }
+        } elseif ($field -ceq 'visibleDurationSec') {
+            if (($value -isnot [long] -and $value -isnot [double]) -or $value -le 0 -or ![double]::IsFinite($value)) {
+                throw '-Signature visibleDurationSec must be a positive, finite number.'
+            }
+        } else {
+            throw "Unknown -Signature field '$field'."
+        }
+    }
+    return $data
+}
+
+function Get-VfxSignatureDistance($Query, $Profile, [string]$Field) {
+    if (!$Query.Contains($Field) -or !$Profile.Contains($Field)) { return [double]::PositiveInfinity }
+    return [Math]::Abs([double]$Query[$Field] - [double]$Profile[$Field])
 }
 
 function Set-VfxDefaults($Data, $Defaults) {

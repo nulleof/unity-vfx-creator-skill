@@ -1,0 +1,13 @@
+{
+  "arcane-smoke-impact": {"mode":"oneShot","silhouette":"cloud","motion":"expand","beatCount":1,"visibleDurationSec":0.3667},
+  "blue-teal-teleport": {"mode":"oneShot","silhouette":"vortex","motion":"rotate","beatCount":2,"visibleDurationSec":6.7667},
+  "campfire-smoke-plume": {"mode":"loop","silhouette":"column","motion":"rise","beatCount":1},
+  "clean-sword-arc": {"mode":"oneShot","silhouette":"crescent","motion":"sweep","beatCount":1,"visibleDurationSec":0.4},
+  "compact-petal-burst": {"mode":"oneShot","silhouette":"orb","motion":"expand","beatCount":1,"visibleDurationSec":0.1667},
+  "gold-shockwave-burst": {"mode":"oneShot","silhouette":"ring","motion":"expand","beatCount":2,"visibleDurationSec":0.5},
+  "sparse-drifting-snow": {"mode":"loop","silhouette":"specks","motion":"drift","beatCount":1},
+  "teal-aura": {"mode":"loop","silhouette":"ring","motion":"rise","beatCount":1},
+  "toon-star-hit": {"mode":"oneShot","silhouette":"star","motion":"hold","beatCount":1,"visibleDurationSec":0.7333},
+  "violet-spark-impact": {"mode":"oneShot","silhouette":"cloud","motion":"expand","beatCount":2,"visibleDurationSec":1.6667},
+  "warm-flash": {"mode":"oneShot","silhouette":"star","motion":"contract","beatCount":1,"visibleDurationSec":0.2333}
+}

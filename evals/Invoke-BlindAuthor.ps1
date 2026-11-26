@@ -5,6 +5,7 @@ param(
     [Alias('CleanProject')][string]$Project,
     [string]$SkillPath,
     [string]$Brief,
+    [string]$SearchSignature,
     [string]$CaptureJson,
     [ValidateRange(32, 2048)][int]$Size = 256,
     [string]$Model,
@@ -96,14 +97,16 @@ function Prepare-Run {
     }
     $entries = @(Get-ChildItem -LiteralPath (Join-Path $skill 'catalog') -File -Filter '*.json' | Sort-Object Name)
     $pipeline = Join-Path $skill 'scripts/vfx.ps1'
-    $closest = @(& $pipeline Find -Brief $Brief | Select-Object -First 3 -ExpandProperty id)
+    $searchArguments = @{ Brief = $Brief }
+    if ($SearchSignature) { $searchArguments.Signature = $SearchSignature }
+    $closest = @(& $pipeline Find @searchArguments | Select-Object -First 3)
     $cards = foreach ($file in $entries) {
         $entry = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json -AsHashtable
         "$($entry.id) | $($entry.title) | $($entry.description) | $($entry['tags'] -join ', ')"
     }
-    $catalog = $entries | Where-Object BaseName -In $closest | ForEach-Object {
-        $entry = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json -AsHashtable
-        "## catalog/$($_.Name)`n" + ($entry | ConvertTo-Json -Compress -Depth 100)
+    $catalog = foreach ($hit in $closest) {
+        $entry = Get-Content -LiteralPath $hit.path -Raw | ConvertFrom-Json -AsHashtable
+        "## catalog/$($hit.id).json`n" + ($entry | ConvertTo-Json -Compress -Depth 100)
     }
     $settingsText = $capture | ConvertTo-Json -Compress
     $contextFile = Join-Path $author 'context.md'
@@ -138,6 +141,7 @@ $(Get-Content -LiteralPath $contextFile -Raw)
     $prepared = [ordered]@{
         status = 'prepared'; startedAt = [DateTimeOffset]::UtcNow.ToString('o'); project = $projectPath
         pipeline = $pipeline; captureSettings = $capture
+        closestRecipeIds = @($closest | ForEach-Object id)
         draftFeedback = $DraftFeedback; draftFeedbackProtocol = $feedbackProtocol; draftSampleFrames = $sampleFrames
         requestedModel = $Model; requestedEffort = $Effort; authorDirectory = $author; draftPrompt = $draftPrompt
         draftRecipe = (Join-Path $author 'draft.json'); finalRecipe = (Join-Path $author 'final.json')
