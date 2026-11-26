@@ -116,7 +116,10 @@ namespace VfxCreator.Editor
             layer.lifetime = Curve.Read(main.startLifetime);
             layer.speed = Curve.Read(main.startSpeed);
             layer.size = Curve.Read(main.startSize);
-            layer.rotation = Curve.Read(main.startRotation);
+            if (main.startRotation3D)
+                layer.rotation3D = AxisCurves.Read(main.startRotationX, main.startRotationY, main.startRotationZ);
+            else
+                layer.rotation = Curve.Read(main.startRotation);
             layer.gravity = Curve.Read(main.gravityModifier);
             layer.startColor = Palette.Read(main.startColor);
 
@@ -149,7 +152,13 @@ namespace VfxCreator.Editor
             var size = system.sizeOverLifetime;
             if (size.enabled) layer.sizeOverLife = Curve.Read(size.size);
             var spin = system.rotationOverLifetime;
-            if (spin.enabled) layer.spinOverLife = Curve.Read(spin.z);
+            if (spin.enabled)
+            {
+                if (spin.separateAxes)
+                    layer.spinOverLife3D = AxisCurves.Read(spin.x, spin.y, spin.z);
+                else
+                    layer.spinOverLife = Curve.Read(spin.z);
+            }
             var velocity = system.velocityOverLifetime;
             if (velocity.enabled)
             {

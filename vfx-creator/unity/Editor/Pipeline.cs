@@ -83,22 +83,18 @@ namespace VfxCreator.Editor
                     case "build":
                         var buildRecipe = JsonUtility.FromJson<Recipe>(File.ReadAllText(request.recipe));
                         result.recipe = request.sourceRecipe;
-                        if (request.HasEffectBrief)
+                        if (request.HasEffectBrief || request.renderAfterBuild)
                         {
                             capture = BuildEffect(buildRecipe, request, result);
                             break;
                         }
                         using (var staged = Build.Stage(buildRecipe, request, out _))
                         {
+                            VerifyGenerated(staged.Path, result);
                             staged.Publish();
                             result.prefab = staged.PublishedPath;
                         }
-                        VerifyGenerated(result.prefab, result);
-                        if (request.renderAfterBuild)
-                        {
-                            request.prefab = result.prefab;
-                            capture = Capture(request, result, LoadPrefab(result.prefab));
-                        }
+                        result.dependencies = AssetDatabase.GetDependencies(result.prefab, true);
                         break;
                     case "render":
                         var renderPrefab = LoadPrefab(request.prefab);
@@ -161,21 +157,41 @@ namespace VfxCreator.Editor
             VerifyGenerated(staged.Path, result);
             request.prefab = staged.Path;
             var preview = Capture(request, result, LoadPrefab(staged.Path), playback);
+            string velocityError = null;
+            void RecordVelocityError(string message, string stackTrace, LogType type)
+            {
+                if (message.Contains("Particle Velocity curves must all be in the same mode", StringComparison.Ordinal))
+                    velocityError = message;
+            }
+
+            Application.logMessageReceived += RecordVelocityError;
             try
             {
-                while (preview.MoveNext()) yield return preview.Current;
+                while (true)
+                {
+                    bool hasFrame = preview.MoveNext();
+                    if (velocityError != null)
+                        throw new InvalidOperationException("Generated particle preview failed: " + velocityError);
+                    if (!hasFrame) break;
+                    yield return preview.Current;
+                }
             }
             finally
             {
+                Application.logMessageReceived -= RecordVelocityError;
                 (preview as IDisposable)?.Dispose();
             }
 
-            playback.prefab = staged.PublishedPath;
-            string manifest = Path.Combine(request.output, "effect.json");
-            staged.Publish(() => WriteJson(manifest, playback));
-            result.prefab = playback.prefab;
+            if (playback == null) staged.Publish();
+            else
+            {
+                playback.prefab = staged.PublishedPath;
+                string manifest = Path.Combine(request.output, "effect.json");
+                staged.Publish(() => WriteJson(manifest, playback));
+                result.effect = manifest;
+            }
+            result.prefab = staged.PublishedPath;
             result.dependencies = AssetDatabase.GetDependencies(result.prefab, true);
-            result.effect = manifest;
         }
 
         private static void Finish(Request request, Receipt result)

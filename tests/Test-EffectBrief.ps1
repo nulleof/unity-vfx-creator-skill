@@ -97,13 +97,41 @@ $invisible.id = "invisible-$suffix"
 $invisibleRecipe = @{ version = 1; id = $invisible.id; layers = @(@{ name = 'Empty emitter' }) }
 Assert-FailedBuild $invisible (Write-Fixture 'invisible-recipe' $invisibleRecipe) 'no visible frames'
 
+$motionBrief = $impact.brief.Clone()
+$motionBrief.id = "axes-motion-$suffix"
+$ranged = @{ mode = 'twoConstants'; min = 0.3; max = 0.7 }
+$curve = @{ mode = 'curve'; keys = @(@{ time = 0; value = 0.3 }, @{ time = 1; value = 0.7 }) }
+$twoCurves = @{ mode = 'twoCurves'; minKeys = $curve.keys; keys = @(@{ time = 0; value = 0.8 }, @{ time = 1; value = 1 }) }
+$motionLayers = @(
+    @{ name = 'Constant'; velocityY = @{ max = 0.5 } },
+    @{ name = 'TwoConstants'; velocityY = $ranged },
+    @{ name = 'Curve'; velocityY = $curve; velocityX = @{ max = 0.2 } },
+    @{ name = 'TwoCurves'; velocityY = $twoCurves; velocityX = @{ max = 0.2 } }
+)
+foreach ($layer in $motionLayers) {
+    $layer.bursts = @(@{ time = 0 })
+    $layer.lifetime = @{ max = 0.4 }
+}
+$motionLayers[1].render = 'Mesh'
+$motionLayers[1].rotation3D = @{ x = $ranged; y = @{ mode = 'twoConstants'; min = 0.1; max = 2 } }
+$motionLayers[1].spinOverLife3D = @{ x = @{ max = 2 }; y = @{ max = 5 } }
+$motionRecipe = @{ version = 1; id = $motionBrief.id; randomizeOnPlay = $true; layers = $motionLayers }
+$motionRecipePath = Write-Fixture 'axes-motion-recipe' $motionRecipe
+$motion = & $pipeline Build -Project $project -Editor $editorPath -Recipe $motionRecipePath `
+    -EffectBrief (Write-Fixture 'axes-motion-brief' $motionBrief) -Output (Join-Path $work $motionBrief.id) -Work $work
+
+$conflict = $motionBrief.Clone()
+$conflict.id = "axes-conflict-$suffix"
+$motionLayers[1].velocityX = $curve
+Assert-FailedBuild $conflict (Write-Fixture 'axes-conflict-recipe' $motionRecipe) "Layer 'TwoConstants': Velocity over Lifetime curve modes conflict on X (Curve) and Y (TwoConstants)"
+
 $editorDir = Join-Path $project "Assets/Editor/EffectBriefCheck_$suffix"
 [void][IO.Directory]::CreateDirectory($editorDir)
 $fixture = Join-Path $editorDir 'EffectBriefPlayCheck.cs'
 $runtimeLog = Join-Path $work 'play-mode.log'
 try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'EffectBriefPlayCheck.cs') -Destination $fixture
-    $inputs = Write-Fixture 'playback' @{ effects = $effects }
+    $inputs = Write-Fixture 'playback' @{ effects = $effects; motionPrefab = $motion.prefab }
     $start = [Diagnostics.ProcessStartInfo]::new($editorPath)
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
@@ -116,7 +144,8 @@ try {
             $process.WaitForExit()
             throw "Play Mode timed out. See '$runtimeLog'."
         }
-        if ($process.ExitCode -ne 0 -or !(Select-String -LiteralPath $runtimeLog -SimpleMatch 'Effect brief Play Mode checks passed.' -Quiet)) {
+        if ($process.ExitCode -ne 0 -or !(Select-String -LiteralPath $runtimeLog -SimpleMatch 'Effect brief Play Mode checks passed.' -Quiet) -or
+            (Select-String -LiteralPath $runtimeLog -SimpleMatch 'Particle Velocity curves must all be in the same mode' -Quiet)) {
             throw "Play Mode checks failed. See '$runtimeLog'."
         }
     } finally {

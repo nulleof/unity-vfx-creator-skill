@@ -1,0 +1,18 @@
+[
+  {
+    "prompt": "Сделай сильный удар раскалённого камня",
+    "brief": "impact.brief.json",
+    "recipe": "impact.recipe.json",
+    "sampleTimesSec": [0.07, 0.15, 0.2, 0.22, 0.27, 0.4],
+    "seeds": [1729, 1730, 1731],
+    "acceptance": "The tumbling rock changes its visible face. A white core dominates at contact across all three seeds, surrounded by visibly different asymmetric rays. The wave and fragments take over as the core fades."
+  },
+  {
+    "prompt": "Сделай тихую ауру заморозки",
+    "brief": "aura.brief.json",
+    "recipe": "aura.recipe.json",
+    "sampleTimesSec": [0.03, 0.1, 0.2, 0.5, 0.9, 1.4],
+    "seeds": [1729, 1730, 1731],
+    "acceptance": "The ice rim becomes legible on activation and stays calm and recognizable. Sparse crystals vary across seeds while the projected footprint remains stable."
+  }
+]

@@ -18,6 +18,7 @@ public static class EffectBriefPlayCheck
     private sealed class Inputs
     {
         public string[] effects;
+        public string motionPrefab;
     }
 
     [Serializable]
@@ -75,6 +76,7 @@ public static class EffectBriefPlayCheck
             var effect = JsonUtility.FromJson<Effect>(File.ReadAllText(path));
             var root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(effect.prefab));
             var systems = root.GetComponentsInChildren<ParticleSystem>();
+            Require(systems.All(system => !system.useAutoRandomSeed), "A legacy recipe enabled automatic seeding.");
             var trails = root.GetComponentsInChildren<TrailRenderer>();
             var emitters = effect.startEmitters.Select(address =>
             {
@@ -133,6 +135,62 @@ public static class EffectBriefPlayCheck
             Debug.Log("Verified playback: " + effect.prefab);
             Object.Destroy(root);
         }
+
+        VerifyMotion(inputs.motionPrefab);
+    }
+
+    private static void VerifyMotion(string prefab)
+    {
+        var root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(prefab));
+        foreach (var system in root.GetComponentsInChildren<ParticleSystem>())
+        {
+            var velocity = system.velocityOverLifetime;
+            var mode = Enum.Parse<ParticleSystemCurveMode>(system.name);
+            Require(velocity.enabled && velocity.x.mode == mode && velocity.y.mode == mode && velocity.z.mode == mode,
+                "Velocity axes did not preserve " + mode);
+            float expectedX = mode == ParticleSystemCurveMode.Curve || mode == ParticleSystemCurveMode.TwoCurves ? 0.2f : 0;
+            foreach (float sample in new[] { 0f, 0.4f, 1f })
+            {
+                Require(Mathf.Approximately(velocity.x.Evaluate(sample, 0.35f), expectedX) &&
+                    Mathf.Approximately(velocity.z.Evaluate(sample, 0.65f), 0),
+                    "Normalizing Velocity axes changed an authored constant or an implicit zero.");
+            }
+        }
+
+        var rock = root.GetComponentsInChildren<ParticleSystem>().Single(system => system.name == "TwoConstants");
+        var spin = rock.rotationOverLifetime;
+        Require(rock.useAutoRandomSeed && rock.main.startRotation3D && spin.enabled && spin.separateAxes,
+            "The mesh did not retain its variation and three-dimensional rotation settings.");
+        var particle = new ParticleSystem.Particle[1];
+        uint firstSeed = 0;
+        Vector3 firstOrientation = default;
+        bool changedSeed = false, changedOrientation = false;
+        for (int play = 0; play < 3; play++)
+        {
+            rock.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+            rock.Play(false);
+            rock.Simulate(0.03f, false, false, false);
+            Require(rock.GetParticles(particle) == 1, "The restarted mesh did not emit.");
+            Vector3 orientation = particle[0].rotation3D;
+            if (play == 0)
+            {
+                firstSeed = rock.randomSeed;
+                firstOrientation = orientation;
+            }
+            else
+            {
+                changedSeed |= rock.randomSeed != firstSeed;
+                changedOrientation |= (orientation - firstOrientation).sqrMagnitude > 1;
+            }
+
+            rock.Simulate(0.1f, false, false, false);
+            Require(rock.GetParticles(particle) == 1 &&
+                Mathf.Abs(particle[0].rotation3D.x - orientation.x) > 1 &&
+                Mathf.Abs(particle[0].rotation3D.y - orientation.y) > 1,
+                "The mesh did not tumble on both configured axes.");
+        }
+        Require(changedSeed && changedOrientation, "Restarting the same mesh did not vary the seed and initial orientation.");
+        Object.Destroy(root);
     }
 
     private static void Start(ParticleSystem[] emitters, ParticleSystem[] systems, TrailRenderer[] trails)

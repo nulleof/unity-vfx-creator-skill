@@ -62,7 +62,7 @@ namespace VfxCreator.Editor
                             mesh = Geometry();
                             AssetDatabase.CreateAsset(mesh, work + "/fragment.asset");
                         }
-                        systems[index] = AddParticles(child, layer, material, mesh, recipe.seed, index);
+                        systems[index] = AddParticles(child, layer, material, mesh, recipe, index);
                     }
                     else throw new ArgumentException($"Unknown layer kind '{layer.kind}'.");
                 }
@@ -153,12 +153,12 @@ namespace VfxCreator.Editor
             return material;
         }
 
-        private static ParticleSystem AddParticles(GameObject child, Layer layer, Material material, Mesh mesh, int seed, int index)
+        private static ParticleSystem AddParticles(GameObject child, Layer layer, Material material, Mesh mesh, Recipe recipe, int index)
         {
             var system = child.AddComponent<ParticleSystem>();
             system.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
-            system.useAutoRandomSeed = false;
-            system.randomSeed = unchecked((uint)(seed + index * 104729));
+            system.randomSeed = unchecked((uint)(recipe.seed + index * 104729));
+            system.useAutoRandomSeed = recipe.randomizeOnPlay;
             var main = system.main;
             main.duration = Mathf.Max(0.02f, layer.duration);
             main.loop = layer.loop;
@@ -171,7 +171,17 @@ namespace VfxCreator.Editor
             main.startLifetime = layer.lifetime.Unity();
             main.startSpeed = layer.speed.Unity();
             main.startSize = layer.size.Unity();
-            main.startRotation = layer.rotation.Unity();
+            if (layer.Uses(nameof(Layer.rotation3D)))
+            {
+                var axes = layer.rotation3D;
+                var (x, y, z) = MatchAxisModes(child.name, nameof(Layer.rotation3D), axes.x, axes.y, axes.z);
+                main.startRotation3D = true;
+                main.startRotationX = x;
+                main.startRotationY = y;
+                main.startRotationZ = z;
+            }
+            else
+                main.startRotation = layer.rotation.Unity();
             main.startColor = layer.startColor.Unity();
             main.gravityModifier = layer.gravity.Unity();
 
@@ -241,11 +251,22 @@ namespace VfxCreator.Editor
                 size.enabled = true;
                 size.size = layer.sizeOverLife.Unity();
             }
-            if (layer.Uses(nameof(Layer.spinOverLife)))
+            bool usesSpin3D = layer.Uses(nameof(Layer.spinOverLife3D));
+            if (usesSpin3D || layer.Uses(nameof(Layer.spinOverLife)))
             {
                 var rotation = system.rotationOverLifetime;
+                if (usesSpin3D)
+                {
+                    var axes = layer.spinOverLife3D;
+                    var (x, y, z) = MatchAxisModes(system.name, nameof(Layer.spinOverLife3D), axes.x, axes.y, axes.z);
+                    rotation.separateAxes = true;
+                    rotation.x = x;
+                    rotation.y = y;
+                    rotation.z = z;
+                }
+                else
+                    rotation.z = layer.spinOverLife.Unity();
                 rotation.enabled = true;
-                rotation.z = layer.spinOverLife.Unity();
             }
             bool usesX = layer.Uses(nameof(Layer.velocityX));
             bool usesY = layer.Uses(nameof(Layer.velocityY));
@@ -253,11 +274,13 @@ namespace VfxCreator.Editor
             if (usesX || usesY || usesZ)
             {
                 var velocity = system.velocityOverLifetime;
-                velocity.enabled = true;
+                var (x, y, z) = MatchAxisModes(system.name, "Velocity over Lifetime",
+                    usesX ? layer.velocityX : null, usesY ? layer.velocityY : null, usesZ ? layer.velocityZ : null);
                 velocity.space = layer.velocityWorldSpace ? ParticleSystemSimulationSpace.World : ParticleSystemSimulationSpace.Local;
-                velocity.x = usesX ? layer.velocityX.Unity() : 0;
-                velocity.y = usesY ? layer.velocityY.Unity() : 0;
-                velocity.z = usesZ ? layer.velocityZ.Unity() : 0;
+                velocity.x = x;
+                velocity.y = y;
+                velocity.z = z;
+                velocity.enabled = true;
             }
             if (layer.noise > 0)
             {
@@ -265,6 +288,51 @@ namespace VfxCreator.Editor
                 noise.enabled = true;
                 noise.strength = new ParticleSystem.MinMaxCurve(layer.noise);
                 noise.frequency = Mathf.Max(0.01f, layer.noiseFrequency);
+            }
+        }
+
+        private static (ParticleSystem.MinMaxCurve x, ParticleSystem.MinMaxCurve y, ParticleSystem.MinMaxCurve z)
+            MatchAxisModes(string layer, string module, Curve x, Curve y, Curve z)
+        {
+            var xCurve = x?.Unity() ?? new ParticleSystem.MinMaxCurve(0);
+            var yCurve = y?.Unity() ?? new ParticleSystem.MinMaxCurve(0);
+            var zCurve = z?.Unity() ?? new ParticleSystem.MinMaxCurve(0);
+            var mode = ParticleSystemCurveMode.Constant;
+            string firstAxis = null;
+
+            void Match(string axis, ParticleSystemCurveMode candidate)
+            {
+                if (candidate == ParticleSystemCurveMode.Constant) return;
+                if (firstAxis == null)
+                {
+                    mode = candidate;
+                    firstAxis = axis;
+                }
+                else if (mode != candidate)
+                    throw new ArgumentException($"Layer '{layer}': {module} curve modes conflict on {firstAxis} ({mode}) and {axis} ({candidate}).");
+            }
+
+            Match("X", xCurve.mode);
+            Match("Y", yCurve.mode);
+            Match("Z", zCurve.mode);
+            return (PromoteConstant(xCurve, mode), PromoteConstant(yCurve, mode), PromoteConstant(zCurve, mode));
+        }
+
+        private static ParticleSystem.MinMaxCurve PromoteConstant(ParticleSystem.MinMaxCurve curve, ParticleSystemCurveMode mode)
+        {
+            if (curve.mode != ParticleSystemCurveMode.Constant) return curve;
+            float value = curve.constant;
+            switch (mode)
+            {
+                case ParticleSystemCurveMode.TwoConstants:
+                    return new ParticleSystem.MinMaxCurve(value, value);
+                case ParticleSystemCurveMode.Curve:
+                    return new ParticleSystem.MinMaxCurve(1, AnimationCurve.Constant(0, 1, value));
+                case ParticleSystemCurveMode.TwoCurves:
+                    return new ParticleSystem.MinMaxCurve(1,
+                        AnimationCurve.Constant(0, 1, value), AnimationCurve.Constant(0, 1, value));
+                default:
+                    return curve;
             }
         }
 

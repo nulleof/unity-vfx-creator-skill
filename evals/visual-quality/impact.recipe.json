@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "id": "quality-hot-stone-impact",
+  "title": "Удар раскалённого камня",
+  "description": "Гранёный камень кувыркается на подлёте. При контакте белое ядро даёт резкий импульс, из которого вылетают неравные оранжевые лучи. За ним расширяется низкая волна, разлетаются обломки и затихает пыль.",
+  "tags": ["hot stone", "impact", "ember", "shockwave", "камень", "удар", "обломки"],
+  "duration": 0.83,
+  "seed": 1729,
+  "randomizeOnPlay": true,
+  "layers": [
+    {
+      "name": "Кувыркающийся камень",
+      "phase": "Подлёт",
+      "render": "Mesh",
+      "alignment": "Local",
+      "position": { "x": -0.58, "y": 1.25, "z": 0.22 },
+      "size": { "max": 1.14 },
+      "lifetime": { "max": 0.2 },
+      "gravity": { "max": 2.05 },
+      "velocityX": { "max": 2.9 },
+      "velocityY": { "max": -4.1 },
+      "velocityZ": { "max": -1.1 },
+      "rotation3D": {
+        "x": { "mode": "twoConstants", "min": 0.1, "max": 2.1 },
+        "y": { "mode": "twoConstants", "min": -2.6, "max": 2.6 },
+        "z": { "mode": "twoConstants", "min": -1.4, "max": 1.4 }
+      },
+      "spinOverLife3D": {
+        "x": { "mode": "twoConstants", "min": 4.2, "max": 8.5 },
+        "y": { "mode": "twoConstants", "min": -7, "max": -3.4 },
+        "z": { "mode": "twoConstants", "min": -3, "max": 5.8 }
+      },
+      "texture": { "kind": "smoke", "detail": 0.6, "falloff": 1.05 },
+      "tint": { "r": 0.96, "g": 0.37, "b": 0.12, "a": 0.96 },
+      "glow": 0.86,
+      "blend": "alpha",
+      "bursts": [{ "time": 0 }],
+      "maxParticles": 1
+    },
+    {
+      "name": "Белое контактное ядро",
+      "phase": "Контакт",
+      "position": { "x": 0, "y": 0.14, "z": 0 },
+      "texture": { "kind": "glow", "falloff": 1.12 },
+      "size": { "max": 1.37 },
+      "lifetime": { "max": 0.105 },
+      "tint": { "r": 1, "g": 0.92, "b": 0.66, "a": 1 },
+      "glow": 3.3,
+      "maxScreenSize": 0.48,
+      "bursts": [{ "time": 0.2 }],
+      "maxParticles": 1,
+      "sizeOverLife": {
+        "mode": "curve",
+        "keys": [{ "time": 0, "value": 0.75 }, { "time": 0.26, "value": 1 }, { "time": 1, "value": 1.13 }]
+      },
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 1 }, { "time": 0.36, "value": 0.92 }, { "time": 0.66, "value": 0.38 }, { "time": 1, "value": 0 }] }
+      }
+    },
+    {
+      "name": "Неравные лучи",
+      "phase": "Контакт",
+      "position": { "x": 0, "y": 0.15, "z": 0 },
+      "shape": { "type": "Sphere", "radius": 0.09, "thickness": 1 },
+      "texture": { "kind": "spark", "falloff": 0.9 },
+      "render": "Stretch",
+      "lengthScale": 3.25,
+      "velocityScale": 0.12,
+      "size": { "mode": "twoConstants", "min": 0.11, "max": 0.31 },
+      "speed": { "mode": "twoConstants", "min": 1.5, "max": 6.7 },
+      "lifetime": { "mode": "twoConstants", "min": 0.068, "max": 0.155 },
+      "tint": { "r": 1, "g": 0.61, "b": 0.26, "a": 0.92 },
+      "glow": 1.7,
+      "bursts": [{ "time": 0.2, "count": { "mode": "twoConstants", "min": 8, "max": 12 } }],
+      "maxParticles": 12,
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 1 }, { "time": 0.35, "value": 0.86 }, { "time": 1, "value": 0 }] }
+      }
+    },
+    {
+      "name": "Низкая волна жара",
+      "phase": "Разлёт",
+      "render": "HorizontalBillboard",
+      "position": { "x": 0, "y": 0.035, "z": 0 },
+      "texture": { "kind": "ring", "falloff": 1.35, "detail": 0.27 },
+      "size": { "max": 3.25 },
+      "lifetime": { "max": 0.3 },
+      "tint": { "r": 1, "g": 0.38, "b": 0.13, "a": 0.59 },
+      "glow": 0.87,
+      "maxScreenSize": 0.86,
+      "bursts": [{ "time": 0.223 }],
+      "maxParticles": 1,
+      "sizeOverLife": {
+        "mode": "curve",
+        "keys": [{ "time": 0, "value": 0.14 }, { "time": 0.31, "value": 0.58 }, { "time": 0.65, "value": 0.87 }, { "time": 1, "value": 1 }]
+      },
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 0.64 }, { "time": 0.29, "value": 0.86 }, { "time": 0.65, "value": 0.36 }, { "time": 1, "value": 0 }] }
+      }
+    },
+    {
+      "name": "Осколки горящей породы",
+      "phase": "Разлёт",
+      "render": "Mesh",
+      "alignment": "Local",
+      "position": { "x": 0, "y": 0.08, "z": 0 },
+      "texture": { "kind": "glow", "falloff": 0.67 },
+      "shape": { "type": "Cone", "radius": 0.13, "angle": 57, "euler": { "x": -90, "y": 0, "z": 0 } },
+      "size": { "mode": "twoConstants", "min": 0.13, "max": 0.32 },
+      "speed": { "mode": "twoConstants", "min": 1.65, "max": 3.55 },
+      "lifetime": { "mode": "twoConstants", "min": 0.24, "max": 0.44 },
+      "gravity": { "max": 1.2 },
+      "rotation3D": {
+        "x": { "mode": "twoConstants", "min": 0, "max": 3.14 },
+        "y": { "mode": "twoConstants", "min": -3.14, "max": 3.14 },
+        "z": { "mode": "twoConstants", "min": -1.57, "max": 1.57 }
+      },
+      "spinOverLife3D": {
+        "x": { "mode": "twoConstants", "min": -9, "max": 10 },
+        "y": { "mode": "twoConstants", "min": -8, "max": 8 },
+        "z": { "mode": "twoConstants", "min": -7, "max": 9 }
+      },
+      "tint": { "r": 1, "g": 0.4, "b": 0.14, "a": 0.96 },
+      "glow": 0.9,
+      "bursts": [{ "time": 0.228, "count": { "max": 9 } }],
+      "maxParticles": 9,
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 1 }, { "time": 0.51, "value": 0.83 }, { "time": 1, "value": 0 }] }
+      }
+    },
+    {
+      "name": "Оседающая пыль",
+      "phase": "Затухание",
+      "position": { "x": 0, "y": 0.08, "z": 0 },
+      "shape": { "type": "Sphere", "radius": 0.19 },
+      "texture": { "kind": "smoke", "detail": 0.71, "falloff": 1.65 },
+      "size": { "mode": "twoConstants", "min": 0.72, "max": 1.05 },
+      "speed": { "mode": "twoConstants", "min": 0.42, "max": 1.28 },
+      "velocityY": { "mode": "twoConstants", "min": 0.11, "max": 0.32 },
+      "lifetime": { "mode": "twoConstants", "min": 0.32, "max": 0.53 },
+      "tint": { "r": 0.36, "g": 0.22, "b": 0.17, "a": 0.45 },
+      "glow": 0.77,
+      "blend": "alpha",
+      "bursts": [{ "time": 0.245, "count": { "max": 7 } }],
+      "maxParticles": 7,
+      "sizeOverLife": {
+        "mode": "curve",
+        "keys": [{ "time": 0, "value": 0.45 }, { "time": 0.41, "value": 0.81 }, { "time": 1, "value": 1.14 }]
+      },
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": { "alpha": [{ "time": 0, "value": 0.16 }, { "time": 0.2, "value": 0.74 }, { "time": 1, "value": 0 }] }
+      }
+    }
+  ]
+}

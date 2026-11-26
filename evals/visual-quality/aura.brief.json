@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "quality-frost-aura",
+  "description": "A quiet frost status aura for a top-down gameplay camera. Assume a character about 0.9 units wide. At activation a pale, narrow frost ring traces outward and reaches its strongest contrast in about 0.1 seconds. It settles into a stable icy rim about 1.3 units across with a dim blue ground wash. A few short crystals rise just above the rim at irregular intervals and angles. The recurring motes vary in position, tilt and speed, while the circle stays fixed around the subject. Stop emission when the status ends and let the remaining frost fade in less than 0.5 seconds.",
+  "mode": "loop",
+  "attachment": {
+    "anchor": "Follow just above the affected character's ground contact point while the status is active.",
+    "orientation": "Align local +Y to world up so the rim stays parallel to the ground."
+  },
+  "capture": {
+    "size": 384,
+    "fps": 30,
+    "duration": 1.5,
+    "framing": 2.5,
+    "cameraPitch": 50,
+    "seed": 1729
+  }
+}

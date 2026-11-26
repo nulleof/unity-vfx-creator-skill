@@ -15,6 +15,7 @@ namespace VfxCreator.Editor
         public string[] notes = Array.Empty<string>();
         public float duration = 1;
         public int seed = 1729;
+        public bool randomizeOnPlay;
         public Layer[] layers = Array.Empty<Layer>();
     }
 
@@ -39,6 +40,7 @@ namespace VfxCreator.Editor
         public Curve speed = Curve.Constant(0);
         public Curve size = Curve.Constant(0.25f);
         public Curve rotation = Curve.Constant(0);
+        public AxisCurves rotation3D;
         public Curve gravity = Curve.Constant(0);
         public Curve rate = Curve.Constant(0);
         public Curve distanceRate = Curve.Constant(0);
@@ -48,6 +50,7 @@ namespace VfxCreator.Editor
         public Palette colorOverLife;
         public Curve sizeOverLife;
         public Curve spinOverLife;
+        public AxisCurves spinOverLife3D;
         public Curve velocityX;
         public Curve velocityY;
         public Curve velocityZ;
@@ -76,13 +79,26 @@ namespace VfxCreator.Editor
             if (shape != null) enabled.Add(nameof(shape));
             if (colorOverLife != null) enabled.Add(nameof(colorOverLife));
             if (sizeOverLife != null) enabled.Add(nameof(sizeOverLife));
+            if (rotation3D != null) enabled.Add(nameof(rotation3D));
             if (spinOverLife != null) enabled.Add(nameof(spinOverLife));
+            if (spinOverLife3D != null) enabled.Add(nameof(spinOverLife3D));
             if (velocityX != null) enabled.Add(nameof(velocityX));
             if (velocityY != null) enabled.Add(nameof(velocityY));
             if (velocityZ != null) enabled.Add(nameof(velocityZ));
             if (trail != null) enabled.Add(nameof(trail));
             enabledModules = enabled.ToArray();
         }
+    }
+
+    [Serializable]
+    internal sealed class AxisCurves
+    {
+        public Curve x;
+        public Curve y;
+        public Curve z;
+
+        internal static AxisCurves Read(ParticleSystem.MinMaxCurve x, ParticleSystem.MinMaxCurve y, ParticleSystem.MinMaxCurve z)
+            => new AxisCurves { x = Curve.Read(x), y = Curve.Read(y), z = Curve.Read(z) };
     }
 
     [Serializable]

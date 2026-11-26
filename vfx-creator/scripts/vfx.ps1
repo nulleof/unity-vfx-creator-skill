@@ -291,7 +291,7 @@ function ConvertTo-VfxBuildRecipe([string]$InputPath, [string]$Destination) {
     Set-VfxDefaults $data @{ seed = 1729; duration = 1 }
     foreach ($layer in $data.layers) {
         if (!$layer.Contains('enabledModules')) {
-            $layer.enabledModules = @('shape', 'colorOverLife', 'sizeOverLife', 'spinOverLife', 'velocityX', 'velocityY', 'velocityZ', 'trail' |
+            $layer.enabledModules = @('shape', 'colorOverLife', 'sizeOverLife', 'rotation3D', 'spinOverLife', 'spinOverLife3D', 'velocityX', 'velocityY', 'velocityZ', 'trail' |
                 Where-Object { $layer.Contains($_) -and $null -ne $layer[$_] })
         }
         Set-VfxDefaults $layer @{

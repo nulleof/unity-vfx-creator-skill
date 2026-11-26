@@ -1,6 +1,15 @@
 # Visual brief version 1
 
-A brief describes one effect with one attachment and playback mode. The caller owns the gameplay event and supplies the intended look. Describe timing in seconds and scale in Unity world units when known. Include silhouette, palette, motion, when the effect should read, and how much space it can cover.
+A brief describes one effect with one attachment and playback mode. The caller owns the gameplay event and may supply any part of the intended look. Complete the brief from the request and available game context. Record authoring assumptions in the description when the caller leaves details open. Describe timing in seconds and scale in Unity world units when known.
+
+Use these criteria to turn a short request into decisions:
+
+- **Strongest moment.** For a hit or activation, choose the event that should get the player's attention. Specify when it happens and the change in size, contrast, speed or shape that makes it stand out. A multi-beat one-shot has one main accent. A sustained effect needs a readable appearance, stable identity and a deliberate release.
+- **Silhouette and scale.** Set the main shape and its projected size relative to a character, target or gameplay area. Leave space around it so accents and the background do not obscure its read.
+- **Rhythm and mass.** Set the relationship between anticipation, movement, contact and decay. Give the main body, trail, smoke and fragments timings that reflect their different weight and roles.
+- **Visual character.** Use color, edge quality, light and movement to describe the same material or kind of energy. Put the strongest accent at the gameplay event.
+- **Bounded variation.** Decide what changes between uses, such as initial orientation, spin, directions, ray lengths or accent timing. Keep the event time, point of contact and gameplay bounds precise.
+- **Intentional asymmetry.** Natural flashes can use a dense core, a few dominant rays and shorter rays at uneven angles. Keep regular geometry when it communicates the intended material, pattern or status.
 
 ```json
 {

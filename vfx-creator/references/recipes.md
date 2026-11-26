@@ -1,6 +1,6 @@
 # Recipe version 1
 
-Every recipe is one JSON file in `catalog/`. Required fields are `version: 1`, `id`, `title`, `description` and `layers`. IDs use lowercase letters, digits and hyphens. Give `tags` recognizable synonyms in the languages used for briefs. `duration` is in seconds and `seed` controls procedural textures and particle initialization.
+Every recipe is one JSON file in `catalog/`. Required fields are `version: 1`, `id`, `title`, `description` and `layers`. IDs use lowercase letters, digits and hyphens. Give `tags` recognizable synonyms in the languages used for briefs. `duration` is in seconds and `seed` controls procedural textures and default particle initialization. Set `randomizeOnPlay: true` to vary authored particle ranges on every full restart, including after clearing a pooled effect. Captures use the requested capture seed.
 
 Each layer describes its `name`, `phase`, local transform and `kind` (`particles` or `trail`). Positions, sizes and distances use Unity world units, euler rotations use degrees and particle rotations use radians.
 
@@ -8,6 +8,7 @@ Each layer describes its `name`, `phase`, local transform and `kind` (`particles
 - Shape settings include `type` (a Unity shape name), `radius`, `thickness`, `angle`, `arc`, `length`, local transform and random/spherical direction. Motion fields include curves for `speed`, `size`, `gravity`, `rotation`, `sizeOverLife`, `spinOverLife` and per-axis velocity, plus `noise` and `noiseFrequency`. `subEmitters` link to other layer indices using `layer`, `trigger`, `inherit` and `chance`.
 - `startColor` and `colorOverLife` use palette objects. A constant palette is `{"max":{"r":1,"g":0.4,"b":0.1,"a":1}}`. A gradient uses `mode: "gradient"`, `gradient.colors` and `gradient.alpha`, each an array of time/value pairs with times normalized between 0 and 1. Palette modes also include `twoColors`, `twoGradients` and `randomColor`.
 - A constant curve is `{"max": 0.25}`. Use `mode: "twoConstants"` with min/max for ranges, or `mode: "curve"`, `multiplier: 1` and `keys` with time/value pairs and optional tangents. `twoCurves` uses both `minKeys` and `keys`.
+- `rotation3D` and `spinOverLife3D` accept curves under `x`, `y`, and `z`. They replace `rotation` and `spinOverLife`, respectively. Angles are in radians and spin is in radians per second. In these groups and `velocityX/Y/Z`, omitted axes are zero, constants inherit the common nonconstant mode when present, and different nonconstant modes in one group are a build error.
 - Material fields are `tint` (RGBA), `blend` (`add` or `alpha`), `glow` and optional depth fade `softness`. Texture kinds are `glow`, `star`, `spark`, `ring`, `smoke`, `curl`, `crescent`, `streak`, `flame` and `bubble`. Control them with `resolution`, `falloff`, `detail` and `spokes`. Specify `tilesX`, `tilesY` and `frameOverLife` for animated textures or `png` for an original image relative to `-ResourceRoot`.
 - A `trail` object configures lifetime, width and color. On particle layers it controls particle trails; on trail layers it controls a Trail Renderer that a gameplay transform or the preview rig moves. The renderer also accepts a render mode, camera alignment and stretch settings. Set `maxScreenSize` to a positive viewport fraction up to 1 when the camera-relative billboard size limit would shrink a large ring or flash.
 
@@ -16,6 +17,8 @@ Layers default to billboard particles. Specify at least one burst or a nonzero r
 An analyzer export includes `enabledModules` because Unity's JSON serializer expands empty module objects. When editing an exported recipe, update that list along with the corresponding module fields. When authoring a recipe by hand, omit the list and the builder enables the modules present in the JSON.
 
 Reference and rebuilt captures use the same `-Size`, `-Framing`, `-CameraPitch`, `-Fps`, `-Duration`, `-Travel`, `-Arc` and `-Seed`. The default pitch is zero. Positive pitch raises the camera and aims it down toward the effect. For a moving Trail Renderer, set a nonzero `-Travel` or `-Arc`. A limit file can specify `minForegroundIoU`, `maxMeanColorError`, `maxOnsetFrameDelta`, `maxPeakFrameDelta` and `maxEndFrameDelta` after visual approval.
+
+To review variations of an effect-brief build, keep the recipe and camera settings fixed, and build draft copies with unique brief IDs, empty output directories and different `capture.seed` values.
 
 `Learn` and `Render` accept `-GraphEvents <path>` for Visual Effect Graph captures. Pass a nonempty JSON array such as `[{"frame":0,"name":"start"},{"frame":45,"name":"stop"}]`, using names from the active graph. Events replace automatic startup in the preview and run before simulation of their scheduled frame. Graph schedules are recorded with the capture and are independent of the settings shared by a reference and a Particle System candidate. `Learn` also writes `analysis.json` with the graph systems, events and supported exposed values.
 
