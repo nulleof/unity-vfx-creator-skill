@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Text;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -34,6 +36,7 @@ namespace VfxCreator.Editor
         public int candidateEnd = -1;
         public bool hasLimits;
         public bool passedLimits;
+        public string[] renderEnvironmentWarnings;
         public FrameForeground[] timeline;
     }
 
@@ -57,6 +60,7 @@ namespace VfxCreator.Editor
             {
                 frames = reference.frames, fps = reference.settings.fps,
                 totalPixels = (long)reference.frames * size * size,
+                renderEnvironmentWarnings = CompareEnvironments(reference.renderEnvironment, candidate.renderEnvironment),
                 timeline = new FrameForeground[reference.frames]
             };
             Directory.CreateDirectory(request.output);
@@ -141,6 +145,29 @@ namespace VfxCreator.Editor
         private static CaptureManifest LoadCapture(string path) =>
             JsonUtility.FromJson<CaptureManifest>(File.ReadAllText(Path.Combine(path, "capture.json")));
 
+        private static string[] CompareEnvironments(RenderEnvironment reference, RenderEnvironment candidate)
+        {
+            if (string.IsNullOrEmpty(reference?.colorSpace) || string.IsNullOrEmpty(candidate?.colorSpace))
+                return Array.Empty<string>();
+
+            var warnings = new List<string>();
+            Check("Color space", reference.colorSpace, candidate.colorSpace);
+            Check("URP Asset HDR", reference.urpSupportsHdr, candidate.urpSupportsHdr);
+            Check("Camera HDR", reference.cameraAllowsHdr, candidate.cameraAllowsHdr);
+            Check("Camera post-processing", reference.cameraPostProcessing, candidate.cameraPostProcessing);
+            Check("Volume layer mask", reference.volumeLayerMask, candidate.volumeLayerMask);
+            Check("Preview Bloom included in Volume mask", reference.previewBloomInMask, candidate.previewBloomInMask);
+            Check("Preview Bloom threshold", reference.previewBloomThreshold, candidate.previewBloomThreshold);
+            Check("Preview Bloom intensity", reference.previewBloomIntensity, candidate.previewBloomIntensity);
+            return warnings.ToArray();
+
+            void Check<T>(string label, T first, T second)
+            {
+                if (!EqualityComparer<T>.Default.Equals(first, second))
+                    warnings.Add(FormattableString.Invariant($"{label} differs (reference {first}, candidate {second})."));
+            }
+        }
+
         private static Color32[] LoadFrame(Texture2D texture, string path, int size)
         {
             if (!texture.LoadImage(File.ReadAllBytes(path)) || texture.width != size || texture.height != size)
@@ -164,6 +191,14 @@ namespace VfxCreator.Editor
             string status = !data.hasLimits ? "Awaiting visual approval" : data.passedLimits ? "Within approved limits" : "Exceeded approved limits";
             string iou = data.foregroundIoU.ToString("P1", CultureInfo.InvariantCulture);
             string color = data.meanColorError.ToString("P1", CultureInfo.InvariantCulture);
+            var warnings = new StringBuilder();
+            if (data.renderEnvironmentWarnings.Length > 0)
+            {
+                warnings.Append("<h2>Capture settings differ</h2><ul>");
+                foreach (string warning in data.renderEnvironmentWarnings)
+                    warnings.Append("<li>").Append(WebUtility.HtmlEncode(warning)).Append("</li>");
+                warnings.Append("</ul>");
+            }
             return @"<!doctype html>
 <html lang=""en""><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width,initial-scale=1"">
 <title>VFX Creator comparison</title>
@@ -177,7 +212,7 @@ canvas{display:block;width:100%;height:105px;background:#0b0c11;cursor:pointer} 
 <header><h1>VFX comparison</h1><span>" + status + @"</span></header>
 <p>Foreground overlap " + iou + @" · Color error " + color + @" · Changed pixels " + data.changedPixels + " / " + data.totalPixels + @"<br>
 Onset / peak / end frames — reference " + data.referenceOnset + " / " + data.referencePeak + " / " + data.referenceEnd +
-                ", candidate " + data.candidateOnset + " / " + data.candidatePeak + " / " + data.candidateEnd + @"</p>
+                ", candidate " + data.candidateOnset + " / " + data.candidatePeak + " / " + data.candidateEnd + "</p>" + warnings + @"
 <div class=""labels""><span>Reference / draft</span><span>Candidate</span><span>Pixel difference</span></div>
 <img alt=""Reference, candidate and absolute pixel differences"" id=""preview"" src=""" + Render.FrameName(peak) + @""">
 <p><button id=""play"">Play</button> <input type=""range"" aria-label=""Frame"" id=""frame"" min=""0"" max=""" + (data.frames - 1) +
@@ -189,7 +224,7 @@ Onset / peak / end frames — reference " + data.referenceOnset + " / " + data.r
 const slider = document.querySelector('#frame'), image = document.querySelector('#preview');
 const time = document.querySelector('#time'), button = document.querySelector('#play');
 const chart = document.querySelector('#area'), plot = chart.getContext('2d'), bounds = document.querySelector('#bounds');
-const timeline = " + JsonUtility.ToJson(data) + @".timeline;
+const timeline = " + JsonUtility.ToJson(data).Replace("<", "\\u003c") + @".timeline;
 const largest = Math.max(1, ...timeline.map(({reference, candidate}) => Math.max(reference.area, candidate.area)));
 const fps = " + data.fps + @"; let timer;
 const x = frame => frame * (chart.width - 1) / Math.max(1, timeline.length - 1);

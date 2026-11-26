@@ -98,6 +98,10 @@ Use a disposable Unity 6000.6.8f1 URP project to build and preview the three [ga
 pwsh -File tests/Test-EffectBrief.ps1 -UnityProject '<path-to-a-disposable-urp-project>'
 ```
 
+Pass `-GameplayScene 'Assets/Scenes/Arena.unity'` to also capture the three effects in that scene using its active `MainCamera`. The camera must face the ground plane at Y = 0. Studio frames, gameplay PNGs and their playback timings are saved under `.vfx-work/effect-brief-tests-*/`.
+
+Studio `capture.json` records the URP Asset, color space, HDR and camera post-processing state, Volume mask and preview Bloom settings. `Compare` reports differences in those settings alongside the existing pixel metrics when both captures include them.
+
 Run the batch checks from an installed copy in a disposable URP project. Add `-Benchmark` to compare twelve sequential and batched builds, or `-Interruption` to test timeout recovery and selective retry.
 
 ```powershell

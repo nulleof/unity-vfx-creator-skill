@@ -37,6 +37,7 @@ namespace VfxCreator.Editor
     internal sealed class CaptureManifest
     {
         public CaptureSettings settings;
+        public RenderEnvironment renderEnvironment;
         public Color32 background;
         public int frames;
         public int visibleFrames;
@@ -46,6 +47,20 @@ namespace VfxCreator.Editor
         public GraphEvent[] graphEvents;
         public string[] notes;
         public ForegroundStats[] timeline;
+    }
+
+    [Serializable]
+    internal sealed class RenderEnvironment
+    {
+        public string urpAsset;
+        public string colorSpace;
+        public bool urpSupportsHdr;
+        public bool cameraAllowsHdr;
+        public bool cameraPostProcessing;
+        public int volumeLayerMask;
+        public bool previewBloomInMask;
+        public float previewBloomThreshold;
+        public float previewBloomIntensity;
     }
 
     [Serializable]
@@ -141,6 +156,18 @@ namespace VfxCreator.Editor
             var manifest = new CaptureManifest
             {
                 settings = settings, frames = Mathf.CeilToInt(settings.duration * settings.fps) + 1,
+                renderEnvironment = new RenderEnvironment
+                {
+                    urpAsset = GraphicsSettings.currentRenderPipeline.name,
+                    colorSpace = QualitySettings.activeColorSpace.ToString(),
+                    urpSupportsHdr = UniversalRenderPipeline.asset.supportsHDR,
+                    cameraAllowsHdr = camera.allowHDR,
+                    cameraPostProcessing = cameraData.renderPostProcessing,
+                    volumeLayerMask = cameraData.volumeLayerMask.value,
+                    previewBloomInMask = (cameraData.volumeLayerMask.value & (1 << volume.gameObject.layer)) != 0,
+                    previewBloomThreshold = bloom.threshold.value,
+                    previewBloomIntensity = bloom.intensity.value
+                },
                 graphEvents = schedule ?? Array.Empty<GraphEvent>()
             };
             manifest.timeline = new ForegroundStats[manifest.frames];
