@@ -4,6 +4,8 @@ VFX Creator is a portable Codex skill for building editable, layered visual effe
 
 The installable skill is the complete [`vfx-creator/`](vfx-creator/) directory. The repository also contains development checks and evaluation scripts.
 
+See the [roadmap](ROADMAP.md) for planned work on mobile UI effects.
+
 ## Features
 
 - Create particle and trail effects as editable Unity prefabs.
