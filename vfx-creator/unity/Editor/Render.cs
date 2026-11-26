@@ -144,12 +144,14 @@ namespace VfxCreator.Editor
                 graphEvents = schedule ?? Array.Empty<GraphEvent>()
             };
             manifest.timeline = new ForegroundStats[manifest.frames];
+            GameObject root = null;
             try
             {
                 ReadFrame(camera, target, image);
                 manifest.background = image.GetPixels32()[0];
-                var root = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                root = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                 root.transform.position = Position(settings, 0);
+                if (playback != null) StabilizeAdditiveOrder(root);
                 var systems = root.GetComponentsInChildren<ParticleSystem>();
                 var graphs = root.GetComponentsInChildren<VisualEffect>().Where(effect => effect.enabled && effect.visualEffectAsset != null).ToArray();
                 var eventsByFrame = PlanEvents(graphs, manifest.graphEvents, manifest.frames);
@@ -268,8 +270,25 @@ namespace VfxCreator.Editor
                 camera.targetTexture = null;
                 target.Release();
                 Object.DestroyImmediate(target);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(camera.gameObject);
+                Object.DestroyImmediate(lamp.gameObject);
+                Object.DestroyImmediate(volume.gameObject);
+                Object.DestroyImmediate(bloom);
                 Object.DestroyImmediate(profile);
             }
+        }
+
+        private static void StabilizeAdditiveOrder(GameObject root)
+        {
+            var renderers = root.GetComponentsInChildren<Renderer>();
+            if (renderers.SelectMany(renderer => renderer.sharedMaterials).Any(material =>
+                material == null || !material.HasProperty("_DstBlend") || material.GetFloat("_DstBlend") != (float)BlendMode.One))
+                return;
+            // Additive layers can share a depth key. A stable order avoids GPU rounding differences
+            // between previews without changing the saved prefab or the order of alpha blends.
+            for (int i = 0; i < renderers.Length; i++)
+                renderers[i].sortingOrder = i;
         }
 
         // Draw the sampled path in edit mode. The exported prefab still uses its original TrailRenderer.

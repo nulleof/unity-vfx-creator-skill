@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory, Position = 0)]
-    [ValidateSet('Init', 'Inventory', 'Learn', 'Find', 'Build', 'Render', 'Compare')]
+    [ValidateSet('Init', 'Inventory', 'Learn', 'Find', 'Build', 'BuildBatch', 'Render', 'Compare')]
     [string]$Action,
     [string]$Project,
     [string]$Editor,
@@ -34,7 +34,8 @@ param(
     [ValidateRange(0, 100.0)][float]$Arc = 0,
     [ValidateRange(1, 2147483647)][int]$Seed = 1729,
     [ValidateRange(1, 180)][int]$TimeoutMinutes = 12,
-    [string]$EffectBrief
+    [string]$EffectBrief,
+    [string]$Manifest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -72,8 +73,7 @@ function Full-VfxPath([string]$Path) {
     return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
 }
 
-function Read-VfxEffectBrief([string]$Path, $Capture) {
-    $data = Get-Content -LiteralPath (Full-VfxPath $Path) -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+function Test-VfxEffectBrief($Data, $Capture) {
     if ($data -isnot [System.Collections.IDictionary] -or $data['version'] -isnot [long] -or $data['version'] -ne 1) {
         throw 'An effect brief must be a JSON object with version 1.'
     }
@@ -113,7 +113,6 @@ function Read-VfxEffectBrief([string]$Path, $Capture) {
     if ($data['mode'] -eq 'trail' -and [single]$Capture.travel -eq 0 -and [single]$Capture.arc -eq 0) {
         throw 'A trail effect brief needs nonzero capture.travel or capture.arc.'
     }
-    return $data
 }
 
 function Find-VfxEditor([string]$Release) {
@@ -323,6 +322,17 @@ function Get-VfxWork([string]$Root) {
     return New-VfxDirectory $location
 }
 
+function Remove-VfxUnityBridge([string]$ProjectPath, [string]$Location) {
+    $bridge = Get-VfxSafePath $ProjectPath $Location
+    if (Test-Path -LiteralPath $bridge -PathType Container) {
+        foreach ($file in Get-ChildItem -LiteralPath $bridge -File) {
+            Remove-Item -LiteralPath $file.FullName
+        }
+        if (!(Get-ChildItem -LiteralPath $bridge -Force)) { [IO.Directory]::Delete($bridge) }
+    }
+    if (Test-Path -LiteralPath "$bridge.meta") { Remove-Item -LiteralPath "$bridge.meta" }
+}
+
 function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
     $requestPath = Join-Path $Run 'request.json'
     $responsePath = Join-Path $Run 'response.json'
@@ -331,8 +341,26 @@ function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
     $Request | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $requestPath
     $bridgeLocation = "Assets/Editor/VfxCreatorBridge_$([guid]::NewGuid().ToString('N'))"
     $bridge = Get-VfxSafePath $Unity.path $bridgeLocation
-    [void](New-VfxDirectory $bridge)
+    $lockPath = Join-Path (New-VfxDirectory (Join-Path $Unity.path '.vfx-work')) 'unity-bridge.lock'
     try {
+        $lock = [IO.File]::Open($lockPath, 'OpenOrCreate', 'ReadWrite', 'None')
+    } catch [IO.IOException] {
+        throw "Could not acquire the Unity bridge lock '$lockPath'. Finish the active run before retrying."
+    }
+    $bridgeRecorded = $false
+    try {
+        $reader = [IO.StreamReader]::new($lock, [Text.Encoding]::UTF8, $false, 1024, $true)
+        try { $previous = $reader.ReadToEnd() } finally { $reader.Dispose() }
+        if ($previous -cmatch '\AAssets/Editor/VfxCreatorBridge_[0-9a-f]{32}\z') {
+            Remove-VfxUnityBridge $Unity.path $previous
+        }
+        $lock.SetLength(0)
+        $lock.Position = 0
+        $owner = [Text.Encoding]::UTF8.GetBytes($bridgeLocation)
+        $lock.Write($owner, 0, $owner.Length)
+        $lock.Flush()
+        $bridgeRecorded = $true
+        [void](New-VfxDirectory $bridge)
         $bridgeFiles = @(Get-ChildItem -LiteralPath (Join-Path $skill 'unity/Editor') -Filter '*.cs' -File)
         foreach ($file in $bridgeFiles) { Copy-Item -LiteralPath $file.FullName -Destination $bridge }
         $info = [Diagnostics.ProcessStartInfo]::new($Unity.editor)
@@ -344,12 +372,14 @@ function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
         $process = [Diagnostics.Process]::Start($info)
         try {
             if (!$process.WaitForExit($TimeoutMinutes * 60000)) {
-                $process.Kill($true)
-                $process.WaitForExit()
                 throw "Unity timed out. See '$logPath'."
             }
             $exitCode = $process.ExitCode
         } finally {
+            if (!$process.HasExited) {
+                $process.Kill($true)
+                $process.WaitForExit()
+            }
             $process.Dispose()
         }
         if (!(Test-Path -LiteralPath $responsePath -PathType Leaf)) {
@@ -359,27 +389,52 @@ function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
         if ($exitCode -or !$result.ok) { throw "Unity failed: $($result.error) See '$logPath'." }
         return [pscustomobject]$result
     } finally {
-        foreach ($file in Get-ChildItem -LiteralPath $bridge -File -ErrorAction SilentlyContinue) {
-            Remove-Item -LiteralPath $file.FullName
+        try {
+            if ($bridgeRecorded) {
+                Remove-VfxUnityBridge $Unity.path $bridgeLocation
+                $lock.SetLength(0)
+                if ($Request.action -eq 'buildbatch') {
+                    # A killed editor cannot dispose the staging folder for the item it was building.
+                    foreach ($item in $Request.items) {
+                        $staging = Get-VfxSafePath $Unity.path "Assets/VfxCreatorGenerated/staging-$($item.stagingToken)"
+                        if (Test-Path -LiteralPath $staging -PathType Container) { Remove-Item -LiteralPath $staging -Recurse -Force }
+                        if (Test-Path -LiteralPath "$staging.meta" -PathType Leaf) { Remove-Item -LiteralPath "$staging.meta" }
+                    }
+                }
+            }
+        } finally {
+            $lock.Dispose()
         }
-        if (!(Get-ChildItem -LiteralPath $bridge -Force)) { [IO.Directory]::Delete($bridge) }
-        if (Test-Path -LiteralPath "$bridge.meta") { Remove-Item -LiteralPath "$bridge.meta" }
     }
 }
 
 $effectSpec = $null
 $captureSettings = @{ size = $Size; fps = $Fps; duration = $Duration; framing = $Framing; cameraPitch = $CameraPitch; travel = $Travel; arc = $Arc; seed = $Seed }
+if ($PSBoundParameters.ContainsKey('Manifest') -and $Action -ne 'BuildBatch') { throw '-Manifest requires BuildBatch.' }
 if ($PSBoundParameters.ContainsKey('EffectBrief')) {
     if ($Action -ne 'Build') { throw '-EffectBrief requires Build.' }
     foreach ($name in @('Id') + @($captureSettings.Keys)) {
         if ($PSBoundParameters.ContainsKey($name)) { throw "-$name belongs in the effect brief when using -EffectBrief." }
     }
-    $effectSpec = Read-VfxEffectBrief $EffectBrief $captureSettings
+    $effectSpec = Get-Content -LiteralPath (Full-VfxPath $EffectBrief) -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+    Test-VfxEffectBrief $effectSpec $captureSettings
     $Id = $effectSpec.id
 }
 
 if ($Action -eq 'Init') { Initialize-VfxProject; return }
 if ($Action -eq 'Find') { Find-VfxRecipe; return }
+
+if ($Action -eq 'BuildBatch') {
+    Require-VfxArgument 'Manifest' $Manifest
+    Require-VfxArgument 'Output' $Output
+    foreach ($name in @('Id', 'Recipe', 'ResourceRoot', 'RenderAfterBuild') + @($captureSettings.Keys)) {
+        if ($PSBoundParameters.ContainsKey($name)) { throw "-$name belongs in the manifest or effect brief for BuildBatch." }
+    }
+    if (!$PSBoundParameters.ContainsKey('TimeoutMinutes')) { $TimeoutMinutes = 60 }
+    . "$PSScriptRoot/Batch.ps1"
+    Invoke-VfxBuildBatch (Get-VfxProject $Project) (Full-VfxPath $Manifest) (Full-VfxPath $Output) $captureSettings
+    return
+}
 
 if ($Action -eq 'Inventory') {
     Require-VfxArgument 'Source' $Source

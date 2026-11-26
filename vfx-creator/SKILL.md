@@ -1,6 +1,6 @@
 ---
 name: vfx-creator
-description: Deliver ready-to-play Unity URP VFX prefabs from visual briefs or plain text, with a preview and playback instructions. Use for gameplay impacts, projectile trails, status auras, particles, magic, smoke and bursts, or to learn and verify effects from local reference packs.
+description: Deliver ready-to-play Unity URP VFX prefabs from visual briefs, plain text or a list of effects, with previews and playback instructions. Use for gameplay impacts, projectile trails, status auras, particles, magic, smoke and bursts, or to learn and verify effects from local reference packs.
 ---
 
 # VFX Creator
@@ -8,6 +8,8 @@ description: Deliver ready-to-play Unity URP VFX prefabs from visual briefs or p
 This folder is the whole skill. Use PowerShell 7.4+ and an installed Unity editor. Run [the pipeline](scripts/vfx.ps1) using its full path from the target repo. Find the Unity root by `ProjectSettings/ProjectVersion.txt` and `Packages/manifest.json`.
 
 ## Create or adapt
+
+For a list of effects, follow the [batch workflow](references/batch.md) to plan the set, preview it together and export the effects that pass review.
 
 1. Read the [visual brief and playback format](references/visual-brief.md), [authoring](roles/author.md) and the [recipe format](references/recipes.md). A short request is enough. Fill gaps in the brief yourself, respecting the caller's stated intent. Decide which moment the player should notice most, what makes it read from the gameplay camera, and what can vary between plays. Design the effect and hand it back for the calling chat to connect to gameplay.
 2. Plan the defining moment and silhouette, then run `Find` with the description and the [visual signature](references/signatures.md) fields supported by the brief. Reuse helpful layers and synthesize the defining shapes where needed. Build a draft with `Build -Recipe <path> -EffectBrief <path>` under a distinct ID.

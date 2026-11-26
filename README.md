@@ -8,6 +8,7 @@ The installable skill is the complete [`vfx-creator/`](vfx-creator/) directory. 
 
 - Create particle and trail effects as editable Unity prefabs.
 - Build and preview a gameplay prefab from a visual brief, with a JSON handoff for playback.
+- Design and preview a set of effects together, then build the accepted prefabs in one Unity session.
 - Find a starting recipe from a brief, then adapt or combine layers.
 - Generate textures, materials and shaders used by the effect.
 - Inventory local `.unitypackage` files and nested archives; learn recipe metadata from selected prefabs.
@@ -68,6 +69,14 @@ For a prefab you can trigger in gameplay, provide a [visual brief](vfx-creator/r
 
 The brief sets the final ID, attachment, playback mode and preview camera. The build returns the prefab, recipe, capture and `effect.json` paths. Use the manifest to wire a one-shot, a sustained effect or a moving trail to the corresponding event.
 
+For a set of effects, give the skill the full list in one request. It can preview the draft set, revise selected effects and build the accepted recipes together. To build prepared recipes and briefs directly, use the [batch workflow and manifest format](vfx-creator/references/batch.md).
+
+```powershell
+& $vfx BuildBatch -Project . -Manifest './effects/batch-input.json' -Output './.vfx-work/effect-set'
+```
+
+Open `index.html` for the preview gallery and `batch.json` for the result of each item.
+
 ## Develop and evaluate
 
 Run the local workflow smoke check from the repository root:
@@ -88,6 +97,14 @@ Use a disposable Unity 6000.6.8f1 URP project to build and preview the three [ga
 ```powershell
 pwsh -File tests/Test-EffectBrief.ps1 -UnityProject '<path-to-a-disposable-urp-project>'
 ```
+
+Run the batch checks from an installed copy in a disposable URP project. Add `-Benchmark` to compare twelve sequential and batched builds, or `-Interruption` to test timeout recovery and selective retry.
+
+```powershell
+pwsh -File tests/Test-VfxBatch.ps1 -UnityProject '<path-to-a-disposable-urp-project>'
+```
+
+To compare visual quality, give fresh authoring sessions the same three prompts and matched capture settings. Allow one round of revisions in each session using its own draft captures. Compare the final contact sheets anonymously after both sets of prefabs have been exported. [Batch quality prompts](evals/batch-quality.json)
 
 [`evals/cases.json`](evals/cases.json) defines five reconstruction examples and one catalog-expansion example. `evals/Invoke-Reconstruction.ps1` supports `Reference`, `Candidate`, `Review` and `Variant` stages. It writes local captures and HTML reports under `.vfx-work/` by default. Reference packages are not included; provide source packages that you are allowed to use.
 

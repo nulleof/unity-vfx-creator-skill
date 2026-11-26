@@ -16,6 +16,7 @@ namespace VfxCreator.Editor
         public string output;
         public string prefab;
         public string id;
+        public string stagingToken;
         public string title;
         public string brief;
         public string recipe;
@@ -32,6 +33,12 @@ namespace VfxCreator.Editor
         public EffectBrief effectBrief;
 
         internal bool HasEffectBrief => !string.IsNullOrEmpty(effectBrief?.mode);
+    }
+
+    [Serializable]
+    internal sealed class BatchRequest
+    {
+        public Request[] items;
     }
 
     [Serializable]
@@ -60,62 +67,43 @@ namespace VfxCreator.Editor
             string[] args = Environment.GetCommandLineArgs();
             int requestArgument = Array.IndexOf(args, "-vfxRequest");
             if (requestArgument < 0 || requestArgument + 1 >= args.Length) throw new ArgumentException("Pass -vfxRequest <json>.");
-            var request = JsonUtility.FromJson<Request>(File.ReadAllText(args[requestArgument + 1]));
+            string json = File.ReadAllText(args[requestArgument + 1]);
+            var request = JsonUtility.FromJson<Request>(json);
             var result = new Receipt { version = Application.unityVersion };
-            IEnumerator capture = null;
-            try
+            IEnumerator job = request.action == "buildbatch"
+                ? BuildBatch(JsonUtility.FromJson<BatchRequest>(json).items)
+                : Run(request, result);
+            void Update()
             {
-                if (request.action != "compare" && !(GraphicsSettings.currentRenderPipeline?.GetType().FullName?.Contains(".Universal.") ?? false))
-                    throw new InvalidOperationException("Configure the active Unity Quality settings with a Universal Render Pipeline asset.");
-                switch (request.action)
+                if (Advance(job, result))
                 {
-                    case "learn":
-                        var source = LoadPrefab(request.prefab);
-                        var recipe = Analyze.Prefab(source, request, out var graphs);
-                        WriteJson(request.recipe, recipe);
-                        result.analysis = Path.Combine(request.output, "analysis.json");
-                        WriteJson(result.analysis, new GraphAnalysis { graphs = graphs });
-                        result.prefab = request.prefab;
-                        result.recipe = request.recipe;
-                        result.notes = recipe.notes;
-                        if (!request.metadataOnly) capture = Capture(request, result, source);
-                        break;
-                    case "build":
-                        var buildRecipe = JsonUtility.FromJson<Recipe>(File.ReadAllText(request.recipe));
-                        result.recipe = request.sourceRecipe;
-                        if (request.HasEffectBrief || request.renderAfterBuild)
-                        {
-                            capture = BuildEffect(buildRecipe, request, result);
-                            break;
-                        }
-                        using (var staged = Build.Stage(buildRecipe, request, out _))
-                        {
-                            VerifyGenerated(staged.Path, result);
-                            staged.Publish();
-                            result.prefab = staged.PublishedPath;
-                        }
-                        result.dependencies = AssetDatabase.GetDependencies(result.prefab, true);
-                        break;
-                    case "render":
-                        var renderPrefab = LoadPrefab(request.prefab);
-                        if (request.prefab.StartsWith("Assets/VfxCreatorGenerated/", StringComparison.Ordinal))
-                            VerifyGenerated(request.prefab, result);
-                        capture = Capture(request, result, renderPrefab);
-                        break;
-                    case "compare":
-                        var comparison = Compare.Captures(request);
-                        result.report = Path.Combine(request.output, "index.html");
-                        result.hasLimits = comparison.hasLimits;
-                        result.passedLimits = comparison.passedLimits;
-                        break;
-                    default:
-                        throw new ArgumentException("Unknown command " + request.action);
-                }
-                if (capture != null)
-                {
-                    StartCapture(capture, request, result);
+                    EditorApplication.QueuePlayerLoopUpdate();
                     return;
                 }
+                EditorApplication.update -= Update;
+                Finish(request, result);
+            }
+            EditorApplication.update += Update;
+            EditorApplication.QueuePlayerLoopUpdate();
+        }
+
+        private static IEnumerator BuildBatch(Request[] items)
+        {
+            foreach (var item in items)
+            {
+                var result = new Receipt { version = Application.unityVersion };
+                var job = Run(item, result);
+                while (Advance(job, result)) yield return job.Current;
+                WriteJson(item.response, result);
+                yield return null;
+            }
+        }
+
+        private static bool Advance(IEnumerator job, Receipt result)
+        {
+            try
+            {
+                if (job.MoveNext()) return true;
                 result.ok = true;
             }
             catch (Exception exception)
@@ -123,32 +111,66 @@ namespace VfxCreator.Editor
                 result.error = exception.Message;
                 Debug.LogException(exception);
             }
-            Finish(request, result);
+            return false;
         }
 
-        private static void StartCapture(IEnumerator capture, Request request, Receipt result)
+        private static IEnumerator Run(Request request, Receipt result)
         {
-            void Update()
+            var capture = Prepare(request, result);
+            if (capture == null) yield break;
+            try
             {
-                try
-                {
-                    if (capture.MoveNext())
-                    {
-                        EditorApplication.QueuePlayerLoopUpdate();
-                        return;
-                    }
-                    result.ok = true;
-                }
-                catch (Exception exception)
-                {
-                    result.error = exception.Message;
-                    Debug.LogException(exception);
-                }
-                EditorApplication.update -= Update;
-                Finish(request, result);
+                while (capture.MoveNext()) yield return capture.Current;
             }
-            EditorApplication.update += Update;
-            EditorApplication.QueuePlayerLoopUpdate();
+            finally
+            {
+                (capture as IDisposable)?.Dispose();
+            }
+        }
+
+        private static IEnumerator Prepare(Request request, Receipt result)
+        {
+            if (request.action != "compare" && !(GraphicsSettings.currentRenderPipeline?.GetType().FullName?.Contains(".Universal.") ?? false))
+                throw new InvalidOperationException("Configure the active Unity Quality settings with a Universal Render Pipeline asset.");
+            switch (request.action)
+            {
+                case "learn":
+                    var source = LoadPrefab(request.prefab);
+                    var recipe = Analyze.Prefab(source, request, out var graphs);
+                    WriteJson(request.recipe, recipe);
+                    result.analysis = Path.Combine(request.output, "analysis.json");
+                    WriteJson(result.analysis, new GraphAnalysis { graphs = graphs });
+                    result.prefab = request.prefab;
+                    result.recipe = request.recipe;
+                    result.notes = recipe.notes;
+                    return request.metadataOnly ? null : Capture(request, result, source);
+                case "build":
+                    var buildRecipe = JsonUtility.FromJson<Recipe>(File.ReadAllText(request.recipe));
+                    result.recipe = request.sourceRecipe;
+                    if (request.HasEffectBrief || request.renderAfterBuild)
+                        return BuildEffect(buildRecipe, request, result);
+                    using (var staged = Build.Stage(buildRecipe, request, out _))
+                    {
+                        VerifyGenerated(staged.Path, result);
+                        staged.Publish();
+                        result.prefab = staged.PublishedPath;
+                    }
+                    result.dependencies = AssetDatabase.GetDependencies(result.prefab, true);
+                    return null;
+                case "render":
+                    var renderPrefab = LoadPrefab(request.prefab);
+                    if (request.prefab.StartsWith("Assets/VfxCreatorGenerated/", StringComparison.Ordinal))
+                        VerifyGenerated(request.prefab, result);
+                    return Capture(request, result, renderPrefab);
+                case "compare":
+                    var comparison = Compare.Captures(request);
+                    result.report = Path.Combine(request.output, "index.html");
+                    result.hasLimits = comparison.hasLimits;
+                    result.passedLimits = comparison.passedLimits;
+                    return null;
+                default:
+                    throw new ArgumentException("Unknown command " + request.action);
+            }
         }
 
         private static IEnumerator BuildEffect(Recipe recipe, Request request, Receipt result)

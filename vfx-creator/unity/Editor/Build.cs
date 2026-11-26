@@ -23,7 +23,8 @@ namespace VfxCreator.Editor
             string destination = OutputRoot + "/" + id;
             if (Directory.Exists(destination))
                 throw new IOException($"'{destination}' already exists. Choose a new output ID to preserve prefab references.");
-            string work = OutputRoot + "/staging-" + Guid.NewGuid().ToString("N");
+            Guid stagingToken = Guid.TryParseExact(request.stagingToken, "N", out Guid supplied) ? supplied : Guid.NewGuid();
+            string work = OutputRoot + "/staging-" + stagingToken.ToString("N");
             var staged = new StagedPrefab(work, destination);
             AssetDatabase.CreateFolder(OutputRoot, Path.GetFileName(work));
             var root = new GameObject(string.IsNullOrWhiteSpace(recipe.title) ? id : recipe.title);
