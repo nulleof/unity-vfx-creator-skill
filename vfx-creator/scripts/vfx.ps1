@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory, Position = 0)]
-    [ValidateSet('Init', 'Inventory', 'Learn', 'Find', 'Build', 'BuildBatch', 'Render', 'Compare')]
+    [ValidateSet('Init', 'Inventory', 'Learn', 'Find', 'Build', 'BuildBatch', 'BuildUi', 'Render', 'Compare')]
     [string]$Action,
     [string]$Project,
     [string]$Editor,
@@ -35,6 +35,7 @@ param(
     [ValidateRange(1, 2147483647)][int]$Seed = 1729,
     [ValidateRange(1, 180)][int]$TimeoutMinutes = 12,
     [string]$EffectBrief,
+    [string]$UiBrief,
     [string]$Manifest
 )
 
@@ -362,11 +363,16 @@ function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
         $bridgeRecorded = $true
         [void](New-VfxDirectory $bridge)
         $bridgeFiles = @(Get-ChildItem -LiteralPath (Join-Path $skill 'unity/Editor') -Filter '*.cs' -File)
+        $entryPoint = 'VfxCreator.Editor.Pipeline.Execute'
+        if ($Request.action -eq 'buildui') {
+            $bridgeFiles += Get-ChildItem -LiteralPath (Join-Path $skill 'unity/UI') -Filter '*.cs' -File
+            $entryPoint = 'VfxCreator.Editor.UiBuild.Execute'
+        }
         foreach ($file in $bridgeFiles) { Copy-Item -LiteralPath $file.FullName -Destination $bridge }
         $info = [Diagnostics.ProcessStartInfo]::new($Unity.editor)
         $info.UseShellExecute = $false
         $info.CreateNoWindow = $true
-        foreach ($argument in @('-batchmode', '-projectPath', $Unity.path, '-executeMethod', 'VfxCreator.Editor.Pipeline.Execute', '-vfxRequest', $requestPath, '-logFile', $logPath)) {
+        foreach ($argument in @('-batchmode', '-projectPath', $Unity.path, '-executeMethod', $entryPoint, '-vfxRequest', $requestPath, '-logFile', $logPath)) {
             $info.ArgumentList.Add($argument)
         }
         $process = [Diagnostics.Process]::Start($info)
@@ -393,9 +399,10 @@ function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
             if ($bridgeRecorded) {
                 Remove-VfxUnityBridge $Unity.path $bridgeLocation
                 $lock.SetLength(0)
-                if ($Request.action -eq 'buildbatch') {
+                if ($Request.action -in @('buildbatch', 'buildui')) {
                     # A killed editor cannot dispose the staging folder for the item it was building.
-                    foreach ($item in $Request.items) {
+                    $stagedRequests = if ($Request.action -eq 'buildbatch') { $Request.items } else { @($Request) }
+                    foreach ($item in $stagedRequests) {
                         $staging = Get-VfxSafePath $Unity.path "Assets/VfxCreatorGenerated/staging-$($item.stagingToken)"
                         if (Test-Path -LiteralPath $staging -PathType Container) { Remove-Item -LiteralPath $staging -Recurse -Force }
                         if (Test-Path -LiteralPath "$staging.meta" -PathType Leaf) { Remove-Item -LiteralPath "$staging.meta" }
@@ -411,6 +418,7 @@ function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
 $effectSpec = $null
 $captureSettings = @{ size = $Size; fps = $Fps; duration = $Duration; framing = $Framing; cameraPitch = $CameraPitch; travel = $Travel; arc = $Arc; seed = $Seed }
 if ($PSBoundParameters.ContainsKey('Manifest') -and $Action -ne 'BuildBatch') { throw '-Manifest requires BuildBatch.' }
+if ($PSBoundParameters.ContainsKey('UiBrief') -and $Action -ne 'BuildUi') { throw '-UiBrief requires BuildUi.' }
 if ($PSBoundParameters.ContainsKey('EffectBrief')) {
     if ($Action -ne 'Build') { throw '-EffectBrief requires Build.' }
     foreach ($name in @('Id') + @($captureSettings.Keys)) {
@@ -423,6 +431,34 @@ if ($PSBoundParameters.ContainsKey('EffectBrief')) {
 
 if ($Action -eq 'Init') { Initialize-VfxProject; return }
 if ($Action -eq 'Find') { Find-VfxRecipe; return }
+
+if ($Action -eq 'BuildUi') {
+    Require-VfxArgument 'UiBrief' $UiBrief
+    Require-VfxArgument 'Recipe' $Recipe
+    foreach ($name in @('Id', 'ResourceRoot', 'RenderAfterBuild') + @($captureSettings.Keys)) {
+        if ($PSBoundParameters.ContainsKey($name)) { throw "-$name is not supported by BuildUi." }
+    }
+    . "$PSScriptRoot/Ui.ps1"
+    $briefData = Read-VfxUiBrief (Full-VfxPath $UiBrief)
+    $recipePath = (Get-Item -LiteralPath (Full-VfxPath $Recipe)).FullName
+    $recipeData = Read-VfxUiRecipe $recipePath
+    $unity = Get-VfxProject $Project
+    Assert-VfxUgui $unity.path
+    $requestedOutput = if ($Output) { Full-VfxPath $Output } else { $null }
+    if ($requestedOutput -and ((Test-Path -LiteralPath $requestedOutput -PathType Leaf) -or
+        ((Test-Path -LiteralPath $requestedOutput -PathType Container) -and
+        (Get-ChildItem -LiteralPath $requestedOutput -Force | Select-Object -First 1)))) {
+        throw 'A UI effect build requires a fresh or empty output directory.'
+    }
+    $token = [guid]::NewGuid().ToString('N')
+    $run = New-VfxDirectory (Join-Path (Get-VfxWork $unity.path) "buildui-$token")
+    Invoke-VfxUnity $unity @{
+        action = 'buildui'; id = $briefData.id; stagingToken = $token; sourceRecipe = $recipePath
+        uiBrief = $briefData; uiRecipe = $recipeData
+        output = $requestedOutput ?? (Join-Path $run 'output')
+    } $run
+    return
+}
 
 if ($Action -eq 'BuildBatch') {
     Require-VfxArgument 'Manifest' $Manifest

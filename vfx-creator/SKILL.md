@@ -1,6 +1,6 @@
 ---
 name: vfx-creator
-description: Deliver ready-to-play Unity URP VFX prefabs from visual briefs, plain text or a list of effects, with previews and playback instructions. Use for gameplay impacts, projectile trails, status auras, particles, magic, smoke and bursts, or to learn and verify effects from local reference packs.
+description: Deliver editable Unity URP VFX prefabs from visual briefs, plain text or a list of effects, with previews and playback instructions. Use for gameplay impacts, projectile trails, status auras, particles, magic, smoke and bursts, mobile uGUI feedback such as button confirmation, cooldown-ready cues and reward reveals, or learning and verifying effects from local reference packs.
 ---
 
 # VFX Creator
@@ -8,6 +8,8 @@ description: Deliver ready-to-play Unity URP VFX prefabs from visual briefs, pla
 This folder is the whole skill. Use PowerShell 7.4+ and an installed Unity editor. Run [the pipeline](scripts/vfx.ps1) using its full path from the target repo. Find the Unity root by `ProjectSettings/ProjectVersion.txt` and `Packages/manifest.json`.
 
 ## Create or adapt
+
+For feedback on a button, HUD icon, reward card or other uGUI control, follow the [UI effects workflow](references/ui-effects.md). Use `BuildUi` with a UI brief and recipe. Review standard and reduced motion inside the target Overlay Canvas, then return the editable prefab, clips, recipe and `ui-effect.json` with placement and playback instructions. Build each UI effect separately when the request names several controls.
 
 For a list of effects, follow the [batch workflow](references/batch.md) to plan the set, preview it together and export the effects that pass review.
 

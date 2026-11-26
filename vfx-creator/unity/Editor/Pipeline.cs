@@ -64,6 +64,11 @@ namespace VfxCreator.Editor
     {
         public static void Execute()
         {
+            Execute(null);
+        }
+
+        internal static void Execute(Action<string, Request, Receipt> buildUi)
+        {
             string[] args = Environment.GetCommandLineArgs();
             int requestArgument = Array.IndexOf(args, "-vfxRequest");
             if (requestArgument < 0 || requestArgument + 1 >= args.Length) throw new ArgumentException("Pass -vfxRequest <json>.");
@@ -72,7 +77,7 @@ namespace VfxCreator.Editor
             var result = new Receipt { version = Application.unityVersion };
             IEnumerator job = request.action == "buildbatch"
                 ? BuildBatch(JsonUtility.FromJson<BatchRequest>(json).items)
-                : Run(request, result);
+                : Run(request, result, json, buildUi);
             void Update()
             {
                 if (Advance(job, result))
@@ -114,9 +119,9 @@ namespace VfxCreator.Editor
             return false;
         }
 
-        private static IEnumerator Run(Request request, Receipt result)
+        private static IEnumerator Run(Request request, Receipt result, string json = null, Action<string, Request, Receipt> buildUi = null)
         {
-            var capture = Prepare(request, result);
+            var capture = Prepare(request, result, json, buildUi);
             if (capture == null) yield break;
             try
             {
@@ -128,12 +133,15 @@ namespace VfxCreator.Editor
             }
         }
 
-        private static IEnumerator Prepare(Request request, Receipt result)
+        private static IEnumerator Prepare(Request request, Receipt result, string json, Action<string, Request, Receipt> buildUi)
         {
             if (request.action != "compare" && !(GraphicsSettings.currentRenderPipeline?.GetType().FullName?.Contains(".Universal.") ?? false))
                 throw new InvalidOperationException("Configure the active Unity Quality settings with a Universal Render Pipeline asset.");
             switch (request.action)
             {
+                case "buildui" when buildUi != null:
+                    buildUi(json, request, result);
+                    return null;
                 case "learn":
                     var source = LoadPrefab(request.prefab);
                     var recipe = Analyze.Prefab(source, request, out var graphs);
@@ -242,7 +250,7 @@ namespace VfxCreator.Editor
             }, playback);
         }
 
-        private static void VerifyGenerated(string prefab, Receipt result)
+        internal static void VerifyGenerated(string prefab, Receipt result)
         {
             var root = LoadPrefab(prefab);
             var paths = AssetDatabase.GetDependencies(prefab, true);

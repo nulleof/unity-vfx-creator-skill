@@ -17,16 +17,8 @@ namespace VfxCreator.Editor
             if (recipe.version != 1 || recipe.layers == null || recipe.layers.Length == 0)
                 throw new ArgumentException("Expected a version 1 recipe with at least one layer.");
             string id = string.IsNullOrEmpty(request.id) ? recipe.id : request.id;
-            if (!Regex.IsMatch(id ?? "", "^[a-z0-9][a-z0-9-]{0,63}$"))
-                throw new ArgumentException("The output id must contain 1–64 lowercase letters, digits or hyphens.");
-            if (!AssetDatabase.IsValidFolder(OutputRoot)) AssetDatabase.CreateFolder("Assets", "VfxCreatorGenerated");
-            string destination = OutputRoot + "/" + id;
-            if (Directory.Exists(destination))
-                throw new IOException($"'{destination}' already exists. Choose a new output ID to preserve prefab references.");
-            Guid stagingToken = Guid.TryParseExact(request.stagingToken, "N", out Guid supplied) ? supplied : Guid.NewGuid();
-            string work = OutputRoot + "/staging-" + stagingToken.ToString("N");
-            var staged = new StagedPrefab(work, destination);
-            AssetDatabase.CreateFolder(OutputRoot, Path.GetFileName(work));
+            var staged = StagePrefab(id, request.stagingToken);
+            string work = staged.WorkPath;
             var root = new GameObject(string.IsNullOrWhiteSpace(recipe.title) ? id : recipe.title);
             try
             {
@@ -85,6 +77,20 @@ namespace VfxCreator.Editor
             }
         }
 
+        internal static StagedPrefab StagePrefab(string id, string token)
+        {
+            if (!Regex.IsMatch(id ?? "", @"\A[a-z0-9][a-z0-9-]{0,63}\z"))
+                throw new ArgumentException("The output id must contain 1–64 lowercase letters, digits or hyphens.");
+            if (!AssetDatabase.IsValidFolder(OutputRoot)) AssetDatabase.CreateFolder("Assets", "VfxCreatorGenerated");
+            string destination = OutputRoot + "/" + id;
+            if (Directory.Exists(destination) || File.Exists(destination))
+                throw new IOException($"'{destination}' already exists. Choose a new output ID to preserve prefab references.");
+            Guid stagingToken = Guid.TryParseExact(token, "N", out Guid supplied) ? supplied : Guid.NewGuid();
+            string work = OutputRoot + "/staging-" + stagingToken.ToString("N");
+            AssetDatabase.CreateFolder(OutputRoot, Path.GetFileName(work));
+            return new StagedPrefab(work, destination);
+        }
+
         internal sealed class StagedPrefab : IDisposable
         {
             private readonly string work;
@@ -96,6 +102,7 @@ namespace VfxCreator.Editor
                 this.destination = destination;
             }
 
+            internal string WorkPath => work;
             internal string Path => work + "/Effect.prefab";
             internal string PublishedPath => destination + "/Effect.prefab";
 

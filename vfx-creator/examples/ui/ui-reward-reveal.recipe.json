@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "layers": [
+    {
+      "name": "Gold halo",
+      "shape": "glow",
+      "color": "#FFB94D",
+      "size": {"x":1.22,"y":1.63},
+      "standard": [
+        {"time":0,"position":{"x":0.5,"y":0.5},"scale":0.84,"opacity":0.25},
+        {"time":0.13,"position":{"x":0.5,"y":0.5},"scale":1.03,"opacity":0.47},
+        {"time":0.42,"position":{"x":0.5,"y":0.5},"scale":1.14,"opacity":0.32},
+        {"time":0.85,"position":{"x":0.5,"y":0.5},"scale":1.22,"opacity":0}
+      ],
+      "reduced": {
+        "position": {"x":0.5,"y":0.5},
+        "scale": 1.06,
+        "keys": [
+          {"time":0,"opacity":0.42},
+          {"time":0.25,"opacity":0}
+        ]
+      }
+    },
+    {
+      "name": "Left glint",
+      "shape": "star",
+      "color": "#FFE6A5",
+      "size": {"x":0.115,"y":0.24},
+      "standard": [
+        {"time":0,"position":{"x":0.22,"y":0.73},"scale":0.55,"opacity":0},
+        {"time":0.14,"position":{"x":0.18,"y":0.87},"scale":1,"opacity":0.95},
+        {"time":0.55,"position":{"x":0.09,"y":1.04},"scale":0.45,"opacity":0}
+      ]
+    },
+    {
+      "name": "Right glint",
+      "shape": "star",
+      "color": "#FFD674",
+      "size": {"x":0.13,"y":0.26},
+      "standard": [
+        {"time":0,"position":{"x":0.75,"y":0.62},"scale":0.5,"opacity":0},
+        {"time":0.19,"position":{"x":0.82,"y":0.78},"scale":1,"opacity":0.94},
+        {"time":0.66,"position":{"x":0.94,"y":0.98},"scale":0.5,"opacity":0}
+      ]
+    },
+    {
+      "name": "Low fleck",
+      "shape": "spark",
+      "color": "#FFC261",
+      "size": {"x":0.065,"y":0.2},
+      "standard": [
+        {"time":0,"position":{"x":0.74,"y":0.39},"scale":0.45,"opacity":0},
+        {"time":0.22,"position":{"x":0.83,"y":0.2},"scale":0.92,"opacity":0.78},
+        {"time":0.72,"position":{"x":1.01,"y":0.06},"scale":0.5,"opacity":0}
+      ]
+    }
+  ]
+}

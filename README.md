@@ -10,6 +10,7 @@ See the [roadmap](ROADMAP.md) for planned work on mobile UI effects.
 
 - Create particle and trail effects as editable Unity prefabs.
 - Build and preview a gameplay prefab from a visual brief, with a JSON handoff for playback.
+- Build editable uGUI Overlay feedback with standard and reduced-motion clips and a JSON handoff.
 - Design and preview a set of effects together, then build the accepted prefabs in one Unity session.
 - Find a starting recipe from a brief, then adapt or combine layers.
 - Generate textures, materials and shaders used by the effect.
@@ -71,6 +72,15 @@ For a prefab you can trigger in gameplay, provide a [visual brief](vfx-creator/r
 
 The brief sets the final ID, attachment, playback mode and preview camera. The build returns the prefab, recipe, capture and `effect.json` paths. Use the manifest to wire a one-shot, a sustained effect or a moving trail to the corresponding event.
 
+For a screen-space UI effect, use a [UI brief and recipe](vfx-creator/references/ui-effects.md) in a Unity 6000.6.8f1 URP project with uGUI.
+
+```powershell
+$pilot = './.agents/skills/vfx-creator/examples/ui/ui-button-confirm'
+& $vfx BuildUi -Project . -UiBrief "$pilot.brief.json" -Recipe "$pilot.recipe.json"
+```
+
+Mount the editable prefab under the target control in an Overlay Canvas. Use `ui-effect.json` for placement, repeat policy and Animator state names. The skill includes starting recipes for button confirmation, ability readiness and reward reveals.
+
 For a set of effects, give the skill the full list in one request. It can preview the draft set, revise selected effects and build the accepted recipes together. To build prepared recipes and briefs directly, use the [batch workflow and manifest format](vfx-creator/references/batch.md).
 
 ```powershell
@@ -93,6 +103,14 @@ To include local source-package inventory or a build and render in a clean URP p
 pwsh -File tests/Test-VfxCreator.ps1 -SourceRoot '<path-to-your-effect-packs>'
 pwsh -File tests/Test-VfxCreator.ps1 -UnityProject '<path-to-a-clean-urp-project>'
 ```
+
+Run the UI pilot in a disposable Unity 6000.6.8f1 URP project with uGUI. The fixture needs Windows Standalone build support and a desktop graphics session. It builds all three effects from a fresh copy of the skill and captures the composited menu and HUD in a local Player.
+
+```powershell
+pwsh -File tests/Test-UiEffects.ps1 -UnityProject '<path-to-a-disposable-urp-project>'
+```
+
+See `.vfx-work/ui-effect-tests-*/` for the standard, reduced-motion, skipped and settled frames, the playback report and the logs.
 
 Use a disposable Unity 6000.6.8f1 URP project to build and preview the three [gameplay examples](evals/gameplay-briefs.json) from an installed copy, test failed builds, and verify playback in Play Mode.
 
