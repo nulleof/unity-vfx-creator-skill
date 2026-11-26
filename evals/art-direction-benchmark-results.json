@@ -1,0 +1,28 @@
+{
+  "baselineCommit": "d752e10",
+  "baselineSkillSha256": "7D73DC3BB665C1302ACF4E5E42F4DB0362935DD67C6DDB769AF854121EA1A57E",
+  "updatedSkillSha256": "F772A8AAAF21F101B57C0428128A4CA019D62F21C943475904A2FCBF898DCFCD",
+  "editor": "6000.6.8f1",
+  "model": "gpt-6.2-sol",
+  "effort": "medium",
+  "artisticRevisionsPerRun": 1,
+  "exportedPairs": 6,
+  "reviewedPairs": 6,
+  "updatedWins": 4,
+  "updatedCriticalFailures": 0,
+  "updatedPlaybackPasses": 6,
+  "passed": true,
+  "cases": [
+    { "id": "spring-contact", "preferred": "baseline", "reason": "Clearer peg flash and separation between recoil and fragments." },
+    { "id": "ink-hook", "preferred": "updated", "reason": "Clearer sweep and stronger separation between the indigo body and lilac edge." },
+    { "id": "paper-tide", "preferred": "updated", "reason": "Readable low advancing front with coherent paper folds and residue." },
+    { "id": "pollen-skip", "preferred": "baseline", "reason": "Clearer cream leading tip and a more distinct moss wake." },
+    { "id": "lantern-attunement", "preferred": "updated", "reason": "Sustained open two-arc orbit stays readable before release." },
+    { "id": "porcelain-fold", "preferred": "updated", "reason": "Clearer hollow entrance and a visibly wider, warmer exit." }
+  ],
+  "notes": [
+    "This run reused the six briefs after an initial rehearsal exported four complete pairs. Both branches then received identical material and playback instructions.",
+    "One draft needed a syntax-only retry with the same prompt. Both arms still had one artistic revision from their own draft captures.",
+    "Independent anonymous reviewers assessed timestamped frames sampled from the 60 fps motion alongside Play Mode evidence. Exact world-space offsets were not established for every visual judgment."
+  ]
+}

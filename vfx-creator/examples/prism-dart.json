@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "id": "prism-dart",
+  "title": "Prism dart and split wake",
+  "description": "A faceted violet dart leads two world-space wake bands, with a short filament and lightly scattered glints.",
+  "duration": 1.2,
+  "layers": [
+    {
+      "name": "Plum tapered wake",
+      "phase": "wake",
+      "kind": "trail",
+      "texture": { "kind": "glow", "falloff": 0.3 },
+      "blend": "alpha",
+      "tint": { "r": 0.57, "g": 0.37, "b": 0.83, "a": 1 },
+      "trail": {
+        "time": 0.21,
+        "minDistance": 0.026,
+        "corners": 4,
+        "caps": 3,
+        "width": {
+          "mode": "curve",
+          "multiplier": 0.23,
+          "keys": [
+            { "time": 0, "value": 1 },
+            { "time": 0.39, "value": 0.52 },
+            { "time": 0.79, "value": 0.2 },
+            { "time": 1, "value": 0 }
+          ]
+        },
+        "color": {
+          "mode": "gradient",
+          "gradient": {
+            "alpha": [
+              { "time": 0, "value": 0.9 },
+              { "time": 0.32, "value": 0.7 },
+              { "time": 0.76, "value": 0.27 },
+              { "time": 1, "value": 0 }
+            ],
+            "colors": [
+              { "time": 0, "value": { "r": 0.99, "g": 0.73, "b": 1, "a": 1 }
+              },
+              { "time": 0.48, "value": { "r": 0.73, "g": 0.55, "b": 1, "a": 1 }
+              },
+              { "time": 1, "value": { "r": 0.38, "g": 0.26, "b": 0.73, "a": 1 }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Thin violet filament below the head",
+      "phase": "wake",
+      "kind": "trail",
+      "position": { "y": -0.073, "z": 0.025 },
+      "texture": { "kind": "glow", "falloff": 0.22 },
+      "blend": "add",
+      "tint": { "r": 0.73, "g": 0.53, "b": 1, "a": 1 },
+      "glow": 1.33,
+      "trail": {
+        "time": 0.13,
+        "minDistance": 0.021,
+        "corners": 3,
+        "caps": 2,
+        "width": {
+          "mode": "curve",
+          "multiplier": 0.053,
+          "keys": [
+            { "time": 0, "value": 0.65 },
+            { "time": 0.29, "value": 1 },
+            { "time": 0.78, "value": 0.42 },
+            { "time": 1, "value": 0 }
+          ]
+        },
+        "color": {
+          "mode": "gradient",
+          "gradient": {
+            "alpha": [
+              { "time": 0, "value": 0.83 },
+              { "time": 0.57, "value": 0.48 },
+              { "time": 1, "value": 0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Faceted leading body",
+      "phase": "head",
+      "texture": { "png": "examples/dart.png" },
+      "blend": "alpha",
+      "size": { "max": 0.47 },
+      "glow": 1.18,
+      "lifetime": { "max": 0.9 },
+      "maxParticles": 1,
+      "bursts": [
+        {
+          "time": 0,
+          "count": { "max": 1 }
+        }
+      ],
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": {
+          "alpha": [
+            { "time": 0, "value": 1 },
+            { "time": 0.94, "value": 1 },
+            { "time": 1, "value": 0 }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Trailing violet glints",
+      "phase": "residue",
+      "position": { "x": -0.08, "y": 0.01 },
+      "worldSpace": true,
+      "shape": {
+        "type": "Sphere",
+        "radius": 0.046
+      },
+      "texture": { "kind": "spark", "detail": 0.5, "falloff": 0.82, "resolution": 128 },
+      "tint": { "r": 0.78, "g": 0.64, "b": 1, "a": 0.8 },
+      "glow": 0.96,
+      "size": {
+        "mode": "twoConstants",
+        "min": 0.035,
+        "max": 0.065
+      },
+      "speed": {
+        "mode": "twoConstants",
+        "min": 0.12,
+        "max": 0.42
+      },
+      "lifetime": {
+        "mode": "twoConstants",
+        "min": 0.11,
+        "max": 0.19
+      },
+      "duration": 0.9,
+      "distanceRate": { "max": 5 },
+      "maxParticles": 12,
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": {
+          "alpha": [
+            { "time": 0, "value": 0.77 },
+            { "time": 0.43, "value": 0.55 },
+            { "time": 1, "value": 0 }
+          ]
+        }
+      }
+    }
+  ],
+  "seed": 1729
+}

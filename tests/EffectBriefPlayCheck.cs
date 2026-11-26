@@ -25,6 +25,40 @@ public static class EffectBriefPlayCheck
         public string motionPrefab;
         public string gameplayScene;
         public string gameplayOutput;
+        public ArtDirectionCase[] artDirection;
+    }
+
+    [Serializable]
+    private sealed class ArtDirectionCase
+    {
+        public string label;
+        public string effect;
+        public float actorWidth;
+        public float eventTime;
+        public float duration;
+        public float framing;
+        public float cameraPitch;
+        public float travel;
+        public float arc;
+        public int[] frames;
+    }
+
+    [Serializable]
+    private sealed class ArtDirectionPlay
+    {
+        public string context;
+        public int seed;
+        public bool resetClean;
+        public bool played;
+        public bool cleared;
+        public float clearedAt = -1;
+        public float stoppedAt = -1;
+    }
+
+    [Serializable]
+    private sealed class ArtDirectionReport
+    {
+        public ArtDirectionPlay[] plays;
     }
 
     [Serializable]
@@ -73,8 +107,16 @@ public static class EffectBriefPlayCheck
             Time.captureFramerate = 60;
             var inputs = ReadInputs(manifest);
             bool gameplay = !string.IsNullOrEmpty(inputs.gameplayScene);
-            checks = gameplay ? CaptureGameplay(inputs) : Verify(inputs);
-            successMessage = gameplay ? "Effect brief gameplay captures saved." : "Effect brief Play Mode checks passed.";
+            if (inputs.artDirection != null && inputs.artDirection.Length > 0)
+            {
+                checks = CheckArtDirection(inputs);
+                successMessage = "Art direction Play Mode captures saved.";
+            }
+            else
+            {
+                checks = gameplay ? CaptureGameplay(inputs) : Verify(inputs);
+                successMessage = gameplay ? "Effect brief gameplay captures saved." : "Effect brief Play Mode checks passed.";
+            }
             EditorApplication.update += Update;
         };
     }
@@ -85,7 +127,9 @@ public static class EffectBriefPlayCheck
         int index = Array.IndexOf(args, "-vfxPlayCheck");
         string manifest = args[index + 1];
         var inputs = ReadInputs(manifest);
-        if (string.IsNullOrEmpty(inputs.gameplayScene))
+        if (inputs.artDirection != null && inputs.artDirection.Length > 0)
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        else if (string.IsNullOrEmpty(inputs.gameplayScene))
             EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
         else
             EditorSceneManager.OpenScene(inputs.gameplayScene, OpenSceneMode.Single);
@@ -389,6 +433,135 @@ public static class EffectBriefPlayCheck
         }
         Require(changedSeed && changedOrientation, "Restarting the same mesh did not vary the seed and initial orientation.");
         Object.Destroy(root);
+    }
+
+    private static IEnumerator CheckArtDirection(Inputs inputs)
+    {
+        const int size = 384, fps = 60;
+        var camera = new GameObject("Art direction camera").AddComponent<Camera>();
+        camera.enabled = false;
+        camera.orthographic = true;
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        var target = RenderTexture.GetTemporary(size, size, 24);
+        var image = new Texture2D(size, size, TextureFormat.RGB24, false);
+        var shader = Shader.Find("Universal Render Pipeline/Unlit");
+        Require(shader != null, "The gameplay stand needs the URP Unlit shader.");
+        var floorMaterial = new Material(shader);
+        var actorMaterial = new Material(shader) { color = new Color(0.22f, 0.58f, 0.71f) };
+        var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        floor.transform.position = new Vector3(0, -0.03f, 0);
+        floor.GetComponent<Renderer>().sharedMaterial = floorMaterial;
+        var actor = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        actor.GetComponent<Renderer>().sharedMaterial = actorMaterial;
+        var contexts = new[] { "dark", "light", "overlap", "seed-41", "seed-859" };
+        var seeds = new[] { 1729, 1729, 1729, 41, 859 };
+        try
+        {
+            foreach (var item in inputs.artDirection)
+            {
+                var effect = JsonUtility.FromJson<Effect>(File.ReadAllText(item.effect));
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(effect.prefab);
+                Require(prefab != null, "Missing effect prefab for " + item.label);
+                camera.orthographicSize = item.framing / 2;
+                var rotation = Quaternion.Euler(item.cameraPitch, 0, 0);
+                camera.transform.SetPositionAndRotation(rotation * new Vector3(0, 0, -12), rotation);
+                actor.transform.localScale = new Vector3(item.actorWidth, item.actorWidth * 0.63f, item.actorWidth);
+                float actorX = effect.mode == "loop" ? 0 : effect.mode == "trail" ? -item.travel * 0.5f : -item.actorWidth * 0.75f;
+                actor.transform.position = new Vector3(actorX, item.actorWidth * 0.63f, 0.40f);
+                var root = Object.Instantiate(prefab);
+                var overlap = Object.Instantiate(prefab);
+                overlap.SetActive(false);
+                yield return null;
+                var systems = root.GetComponentsInChildren<ParticleSystem>();
+                var trails = root.GetComponentsInChildren<TrailRenderer>();
+                var emitters = ResolveEmitters(effect, root.transform);
+                var otherSystems = overlap.GetComponentsInChildren<ParticleSystem>(true);
+                var otherTrails = overlap.GetComponentsInChildren<TrailRenderer>(true);
+                var otherEmitters = ResolveEmitters(effect, overlap.transform);
+                string directory = Path.Combine(inputs.gameplayOutput, item.label);
+                var plays = new List<ArtDirectionPlay>();
+                for (int play = 0; play < contexts.Length; play++)
+                {
+                    string context = contexts[play];
+                    bool layered = context == "overlap";
+                    floorMaterial.color = context == "light" ? new Color(0.69f, 0.63f, 0.51f) : new Color(0.10f, 0.13f, 0.17f);
+                    camera.backgroundColor = floorMaterial.color;
+                    string frames = Path.Combine(directory, context);
+                    Directory.CreateDirectory(frames);
+                    root.transform.position = ArtDirectionPosition(item, 0);
+                    overlap.SetActive(layered);
+                    overlap.transform.position = root.transform.position + new Vector3(-0.30f, 0.03f, 0.43f);
+                    Reset(systems, trails);
+                    Reset(otherSystems, otherTrails);
+                    var result = new ArtDirectionPlay
+                    {
+                        context = context,
+                        seed = seeds[play],
+                        resetClean = systems.All(system => !system.IsAlive(false)) &&
+                            trails.All(trail => !trail.emitting && trail.positionCount == 0)
+                    };
+                    for (int index = 0; index < systems.Length; index++)
+                    {
+                        systems[index].useAutoRandomSeed = false;
+                        systems[index].randomSeed = (uint)(seeds[play] + index * 37);
+                    }
+                    if (layered) Play(otherEmitters, otherTrails);
+                    foreach (object step in Wait(3f / fps)) yield return step;
+                    Play(emitters, trails);
+                    int started = Time.frameCount;
+                    int last = Mathf.CeilToInt(item.duration * fps);
+                    for (int frame = 0; frame <= last; frame++)
+                    {
+                        while (Time.frameCount - started < frame) yield return null;
+                        float time = frame / (float)fps;
+                        if (effect.mode != "oneShot" && result.stoppedAt < 0 && time >= item.eventTime)
+                        {
+                            result.stoppedAt = time;
+                            Stop(systems, trails);
+                            Stop(otherSystems, otherTrails);
+                        }
+                        root.transform.position = ArtDirectionPosition(item, time);
+                        if (layered) overlap.transform.position = root.transform.position + new Vector3(-0.30f, 0.03f, 0.43f);
+                        if (play == 0 || item.frames.Contains(frame))
+                        {
+                            ReadPixels(camera, target, image);
+                            File.WriteAllBytes(Path.Combine(frames, $"frame-{frame:0000}.png"), image.EncodeToPNG());
+                        }
+                        else
+                        {
+                            // TrailRenderer can update its point history while rendering.
+                            RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
+                        }
+                        bool alive = systems.Any(system => system.particleCount > 0) || trails.Any(trail => trail.positionCount > 1);
+                        result.played |= alive;
+                        if (alive) result.clearedAt = -1;
+                        else if (result.played && result.clearedAt < 0) result.clearedAt = time;
+                    }
+                    File.WriteAllText(Path.Combine(frames, "capture.json"), $"{{\"frames\":{last + 1},\"settings\":{{\"fps\":{fps}}}}}");
+                    result.cleared = result.clearedAt >= 0;
+                    plays.Add(result);
+                }
+                File.WriteAllText(Path.Combine(directory, "playback.json"),
+                    JsonUtility.ToJson(new ArtDirectionReport { plays = plays.ToArray() }, true));
+                Object.Destroy(root);
+                Object.Destroy(overlap);
+                yield return null;
+            }
+        }
+        finally
+        {
+            RenderTexture.ReleaseTemporary(target);
+            Object.Destroy(image);
+            Object.Destroy(floorMaterial);
+            Object.Destroy(actorMaterial);
+        }
+    }
+
+    private static Vector3 ArtDirectionPosition(ArtDirectionCase item, float time)
+    {
+        if (item.travel <= 0) return Vector3.zero;
+        float progress = Mathf.Clamp01(time / item.eventTime);
+        return new Vector3((progress - 0.5f) * item.travel, Mathf.Sin(progress * Mathf.PI) * item.arc, 0);
     }
 
     private static void Reset(ParticleSystem[] systems, TrailRenderer[] trails)

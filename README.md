@@ -121,6 +121,35 @@ foreach ($shape in 'arc', 'wave') {
 }
 ```
 
+### Shape and timing pilot
+
+The [shape and timing guide](vfx-creator/references/shape-and-timing.md) includes an editable contact arc, moving front, and projectile wake. Each has an original shape asset. Configure a disposable Unity 6000.6.8f1 URP project with the installed skill. Build the grayscale block-ins, measured corrections, and final examples together. Use a fresh Unity project when repeating these IDs.
+
+```powershell
+$pilot = '.vfx-work/art-direction-pilot'
+./evals/Invoke-ArtDirectionPilot.ps1 -UnityProject $project -Output $pilot
+./evals/Invoke-ArtDirection.ps1 -Stage Capture -UnityProject $project -ResultsRoot $pilot `
+    -PilotBatch "$pilot/build/batch.json"
+```
+
+Inspect `build/index.html` for the comparison and see the [measured pilot results](evals/art-direction-pilot-results.json). In `gameplay/`, Play Mode captures record the effect beside a scale actor on dark and light ground and during overlap. Two additional passes vary only the seed from the first pass. Each `playback.json` records pool-style reset, playback, scheduled stop and final clearance.
+
+For the original-effects benchmark, freeze the whole starting skill and use a separate disposable project. [The case manifest](evals/art-direction-cases.json) registers six holdout briefs from different families than the pilot. Each arm gets the same brief and measured draft feedback, with one revision. Codex CLI authors the recipes in fresh sessions. FFmpeg encodes the anonymous pairs.
+
+```powershell
+$results = '.vfx-work/art-direction-benchmark'
+./evals/Invoke-ArtDirection.ps1 -Stage Author -ResultsRoot $results -UnityProject $comparisonProject `
+    -BaselineSkill '<frozen-vfx-creator-folder>'
+./evals/Invoke-ArtDirection.ps1 -Stage Review -ResultsRoot $results
+./evals/Invoke-ArtDirection.ps1 -Stage Capture -ResultsRoot $results -UnityProject $comparisonProject
+./evals/Invoke-ArtDirection.ps1 -Stage Review -ResultsRoot $results
+./evals/Invoke-ArtDirection.ps1 -Stage Summarize -ResultsRoot $results
+```
+
+Give reviewers only the per-case folders under `blind-review/`. They contain the brief, anonymous motion, contact sheets and playback evidence. Keep the authoring runs private until verdicts are recorded. The summary requires six verdicts, at least four preferences for the updated skill, zero critical failures for it, and successful startup, clearance and reuse in Play Mode. See the [first complete comparison](evals/art-direction-benchmark-results.json). Use the verdict and frame evidence to decide whether a recipe needs a better authored shape, an animated mesh for another view, or a different trail. Test Graph-specific features on the target URP configuration when a case requires them.
+
+### Reconstruction and accuracy
+
 [`evals/cases.json`](evals/cases.json) defines five reconstruction examples and one catalog-expansion example. `evals/Invoke-Reconstruction.ps1` supports `Reference`, `Candidate`, `Review` and `Variant` stages. It writes local captures and HTML reports under `.vfx-work/` by default. Reference packages are not included; provide source packages that you are allowed to use.
 
 An optional accuracy evaluation is defined in [`evals/accuracy-cases.json`](evals/accuracy-cases.json). `evals/Invoke-Accuracy.ps1` captures the teleport and aura references, renders candidates and compares them. Candidate runs use four clean URP projects named `old-teleport`, `new-teleport`, `old-aura` and `new-aura` under the results directory. After the reference and render/compare stages, run:

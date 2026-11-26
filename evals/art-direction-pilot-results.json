@@ -1,0 +1,37 @@
+{
+  "editor": "6000.6.8f1",
+  "pipeline": "URP",
+  "fps": 60,
+  "installedCopy": true,
+  "builds": { "succeeded": 9, "clippedCaptures": 0 },
+  "playMode": {
+    "contexts": ["dark", "light", "overlap", "seed-41", "seed-859"],
+    "effects": 3,
+    "successfulPlays": 15
+  },
+  "cases": [
+    {
+      "id": "verdigris-arc",
+      "metric": "First frame above 128 luma in the pinned contact patch",
+      "contactPatch": { "xMin": 249, "xMax": 266, "yMin": 147, "yMax": 162, "captureSize": 384 },
+      "blockFrame": 10,
+      "correctedFrame": 7,
+      "finalFrame": 7
+    },
+    {
+      "id": "saffron-front",
+      "metric": "Projected foreground center displacement in world units from frames 18 to 37",
+      "block": 0.332,
+      "corrected": 0.685,
+      "final": 0.684
+    },
+    {
+      "id": "prism-dart",
+      "metric": "Last visible studio frame within the 1.2 second capture",
+      "blockFrame": 72,
+      "correctedFrame": 65,
+      "finalFrame": 65,
+      "finalPlayModeClearAfterStopSeconds": 0.2167
+    }
+  ]
+}

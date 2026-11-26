@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "id": "verdigris-arc",
+  "title": "Verdigris contact arc",
+  "description": "A teal enamel arc peels open beside a contact flash pinned to the target, then falls away in pale chips.",
+  "duration": 0.78,
+  "layers": [
+    {
+      "name": "Tapered opening and split",
+      "phase": "sweep",
+      "position": { "x": 0.04, "y": 0.46, "z": 0.01 },
+      "texture": { "png": "examples/arc.png", "tilesX": 4, "tilesY": 2 },
+      "blend": "alpha",
+      "size": { "max": 1.78 },
+      "maxScreenSize": 1,
+      "lifetime": { "max": 0.32 },
+      "maxParticles": 1,
+      "bursts": [
+        {
+          "time": 0.04,
+          "count": { "max": 1 }
+        }
+      ],
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": {
+          "alpha": [
+            { "time": 0, "value": 0.82 },
+            { "time": 0.19, "value": 1 },
+            { "time": 0.73, "value": 1 },
+            { "time": 1, "value": 0.03 }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Pinned contact flash",
+      "phase": "contact",
+      "position": { "x": 0.55, "y": 0.4 },
+      "texture": { "kind": "star", "detail": 0.61, "falloff": 0.68, "resolution": 128, "spokes": 4 },
+      "tint": { "r": 0.86, "g": 1, "b": 0.92, "a": 1 },
+      "glow": 2.2,
+      "size": { "max": 0.43 },
+      "maxParticles": 1,
+      "lifetime": { "max": 0.09 },
+      "rotation": { "max": 0.32 },
+      "bursts": [
+        {
+          "time": 0.12,
+          "count": { "max": 1 }
+        }
+      ],
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": {
+          "alpha": [
+            { "time": 0, "value": 1 },
+            { "time": 0.38, "value": 0.75 },
+            { "time": 1, "value": 0 }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Falling enamel flakes",
+      "phase": "residue",
+      "position": { "x": 0.46, "y": 0.44, "z": 0.01 },
+      "worldSpace": true,
+      "shape": {
+        "type": "Sphere",
+        "radius": 0.13
+      },
+      "texture": { "kind": "spark", "detail": 0.45, "falloff": 0.88, "resolution": 128 },
+      "glow": 0.94,
+      "blend": "alpha",
+      "tint": { "r": 0.39, "g": 0.75, "b": 0.6, "a": 0.92 },
+      "size": {
+        "mode": "twoConstants",
+        "min": 0.035,
+        "max": 0.09
+      },
+      "speed": {
+        "mode": "twoConstants",
+        "min": 0.34,
+        "max": 0.81
+      },
+      "gravity": { "max": 0.21 },
+      "lifetime": {
+        "mode": "twoConstants",
+        "min": 0.27,
+        "max": 0.43
+      },
+      "maxParticles": 7,
+      "bursts": [
+        {
+          "time": 0.2,
+          "count": { "max": 7 }
+        }
+      ],
+      "colorOverLife": {
+        "mode": "gradient",
+        "gradient": {
+          "alpha": [
+            { "time": 0, "value": 0.8 },
+            { "time": 0.45, "value": 0.65 },
+            { "time": 1, "value": 0 }
+          ]
+        }
+      }
+    }
+  ],
+  "seed": 1729
+}

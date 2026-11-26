@@ -7,6 +7,7 @@ param(
     [string]$Brief,
     [string]$SearchSignature,
     [string]$CaptureJson,
+    [string]$GameplayBriefJson,
     [ValidateRange(32, 2048)][int]$Size = 256,
     [string]$Model,
     [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra')][string]$Effort,
@@ -92,6 +93,22 @@ function Prepare-Run {
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $skill))
     Copy-Item -LiteralPath $sourceSkill -Destination $skill -Recurse
 
+    $gameplay = $null
+    $draftMedium = 'Use built-in procedural textures and set layer timing from the brief.'
+    $finalMedium = 'using built-in procedural textures'
+    if ($GameplayBriefJson) {
+        $gameplay = $GameplayBriefJson | ConvertFrom-Json -AsHashtable -NoEnumerate
+        if ($gameplay -isnot [System.Collections.IDictionary] -or $gameplay['mode'] -cnotin @('oneShot', 'loop', 'trail') -or
+            !$gameplay['attachment']['anchor'] -or !$gameplay['attachment']['orientation']) {
+            throw '-GameplayBriefJson needs a playback mode and both attachment fields.'
+        }
+        $documents += 'references/visual-brief.md'
+        if (Test-Path -LiteralPath (Join-Path $skill 'references/shape-and-timing.md') -PathType Leaf) {
+            $documents += 'references/shape-and-timing.md'
+        }
+        $draftMedium = "Set layer timing from the brief. Playback mode: $($gameplay.mode). Attachment: $($gameplay.attachment.anchor) $($gameplay.attachment.orientation)"
+        $finalMedium = 'using the procedural textures or bundled texture paths listed below'
+    }
     $handbook = foreach ($document in $documents) {
         "## $document`n" + (Get-Content -LiteralPath (Join-Path $skill $document) -Raw)
     }
@@ -109,6 +126,19 @@ function Prepare-Run {
         "## catalog/$($hit.id).json`n" + ($entry | ConvertTo-Json -Compress -Depth 100)
     }
     $settingsText = $capture | ConvertTo-Json -Compress
+    $resources = ''
+    if ($gameplay -and (Test-Path -LiteralPath (Join-Path $skill 'examples'))) {
+        $images = @(Get-ChildItem -LiteralPath (Join-Path $skill 'examples') -Filter '*.png' -File -Recurse)
+        if ($images.Count) {
+            $paths = $images | ForEach-Object { [IO.Path]::GetRelativePath($skill, $_.FullName).Replace('\', '/') }
+            $resources = "Optional bundled texture paths relative to the skill root: $($paths -join ', ')."
+        }
+    }
+    $gameplayContract = if ($gameplay) {
+        @'
+The caller triggers the exported playback mode. A loop needs at least one start layer with loop:true and is stopped by the caller. A oneShot needs a finite start emitter. A trail needs a layer with kind:"trail". In this renderer glow multiplies RGB, so use glow:1 for normal matte colors and use tint or alpha to darken them. These rules also apply to the revised recipe.
+'@
+    } else { '' }
     $contextFile = Join-Path $author 'context.md'
     @"
 # Brief
@@ -117,6 +147,8 @@ $Brief
 
 Preview settings for a clean Unity URP project:
 $settingsText
+$resources
+$gameplayContract
 
 # VFX Creator authoring documentation
 
@@ -133,7 +165,7 @@ $($catalog -join "`n")
 
     $draftPrompt = Join-Path $author 'draft-prompt.md'
     @"
-Create the complete draft VFX Creator version 1 recipe for this brief. Use the supplied skill and catalog. Use built-in procedural textures and set layer timing from the brief. The harness will build and capture your draft in Unity and supply the preview before revision. Submit a JSON object in draft.json. Use only this supplied context and work directory.
+Create the complete draft VFX Creator version 1 recipe for this brief. Use the supplied skill and catalog. $draftMedium The harness will build and capture your draft in Unity and supply the preview before revision. Submit a JSON object in draft.json. Use only this supplied context and work directory.
 
 $(Get-Content -LiteralPath $contextFile -Raw)
 "@ | Set-Content -LiteralPath $draftPrompt
@@ -143,6 +175,7 @@ $(Get-Content -LiteralPath $contextFile -Raw)
         pipeline = $pipeline; captureSettings = $capture
         closestRecipeIds = @($closest | ForEach-Object id)
         draftFeedback = $DraftFeedback; draftFeedbackProtocol = $feedbackProtocol; draftSampleFrames = $sampleFrames
+        gameplay = $gameplay; brief = $Brief; resourceRoot = $skill; finalMedium = $finalMedium
         requestedModel = $Model; requestedEffort = $Effort; authorDirectory = $author; draftPrompt = $draftPrompt
         draftRecipe = (Join-Path $author 'draft.json'); finalRecipe = (Join-Path $author 'final.json')
         revisionPrompt = (Join-Path $author 'revision-prompt.md'); publishedRecipe = $null; prefab = $null; capture = $null
@@ -229,8 +262,19 @@ function Get-ManualAuthor([DateTimeOffset]$StartedAt) {
 }
 
 function Get-AutomatedAuthor($Run, [string]$Phase, [string]$Prompt, [string]$Recipe, [string[]]$Frames) {
-    $completed = $Run.cliAttempts | Where-Object { $_.phase -eq $Phase -and $_.exitCode -eq 0 } | Select-Object -Last 1
-    if ($completed -and (Test-Path -LiteralPath $Recipe -PathType Leaf)) { return $completed }
+    $completed = @($Run.cliAttempts | Where-Object { $_.phase -eq $Phase -and $_.exitCode -eq 0 })
+    $attempt = if ($completed.Count -and (Test-Path -LiteralPath $Recipe -PathType Leaf)) { $completed[-1] }
+               else { Invoke-CodexAuthor $Run $Phase $Prompt $Recipe $Frames }
+    if (!$Run['gameplay']) { return $attempt }
+
+    # The structured response contains a JSON string. A malformed string has not produced a reviewable recipe.
+    try {
+        $null = Get-Content -LiteralPath $Recipe -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+        return $attempt
+    } catch {
+        $responses = @($Run.cliAttempts | Where-Object { $_.phase -eq $Phase -and $_.exitCode -eq 0 })
+        if ($responses.Count -ge 2) { throw }
+    }
     return Invoke-CodexAuthor $Run $Phase $Prompt $Recipe $Frames
 }
 
@@ -247,28 +291,42 @@ function Build-Phase($Run, [string]$Name, [string]$AuthorRecipe, $AuthorMetadata
     Copy-Item -LiteralPath $AuthorRecipe -Destination $recipe -Force
     $id = "blind-$Name-" + [guid]::NewGuid().ToString('N').Substring(0, 12)
     $settings = $Run.captureSettings
+    if (Test-Path -LiteralPath $capture) {
+        $capture = Join-Path $phase ("capture-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    }
+    $buildArguments = @{ Output = $capture; Id = $id; RenderAfterBuild = $true } + $settings
+    if ($Run['gameplay']) {
+        $briefPath = Join-Path $phase 'brief.json'
+        $brief = @{
+            version = 1; id = $id; description = $Run.brief
+            mode = $Run.gameplay.mode; attachment = $Run.gameplay.attachment; capture = $settings
+        }
+        $brief | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $briefPath
+        $buildArguments = @{ Output = $capture; EffectBrief = $briefPath; ResourceRoot = $Run.resourceRoot }
+    }
     $manifestPath = Join-Path $capture 'capture.json'
     $queueTimer = [Diagnostics.Stopwatch]::StartNew()
     $lock = Wait-VfxUnitySlot
     $queueTimer.Stop()
     $timer = [Diagnostics.Stopwatch]::StartNew()
+    $blankDraft = $false
     try {
-        $receipt = & $Run.pipeline Build -Project $Run.project -Recipe $recipe -Id $id -Work (Join-Path $destination 'unity') `
-            -Output $capture -RenderAfterBuild @settings
+        $receipt = & $Run.pipeline Build -Project $Run.project -Recipe $recipe -Work (Join-Path $destination 'unity') @buildArguments
+        $capture = $receipt.capture
+        $manifestPath = Join-Path $capture 'capture.json'
     } catch {
-        if ($_.Exception.Message -notlike '*The capture contains no visible frames*' -or
+        if (($Run['gameplay'] -and $Name -ne 'draft') -or $_.Exception.Message -notlike '*The capture contains no visible frames*' -or
             !(Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw }
-        # Retain the exported prefab and record a blank capture for review.
-        $receipt = [ordered]@{
-            prefab = "Assets/VfxCreatorGenerated/$id/Effect.prefab"; capture = $capture
-            visible = $false; notes = @($_.Exception.Message)
-        }
+        # An effect-brief build rolls back a blank prefab. Its draft frames can still inform the one revision.
+        $blankDraft = [bool]$Run['gameplay']
+        $receipt = [ordered]@{ prefab = "Assets/VfxCreatorGenerated/$id/Effect.prefab"; capture = $capture
+            visible = $false; notes = @($_.Exception.Message) }
     } finally {
         $timer.Stop()
         $lock.Dispose()
     }
-    $prefab = Join-Path $Run.project $receipt.prefab
-    if (!(Test-Path -LiteralPath $prefab -PathType Leaf) -or !(Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+    $prefab = if (!$blankDraft) { Join-Path $Run.project $receipt.prefab }
+    if ((!$blankDraft -and !(Test-Path -LiteralPath $prefab -PathType Leaf)) -or !(Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
         throw "Unity did not produce a $Name prefab and capture."
     }
     return [ordered]@{
@@ -365,11 +423,15 @@ function Prepare-Revision($Run) {
     }
     $frameNames = $attachments | ForEach-Object { Split-Path -Leaf $_ }
     $previewSummary = "Visible frames $($manifest.visibleFrames) of $($manifest.frames), clipped frames $($manifest.clippedFrames), peak particles $($manifest.peakParticles)."
+    if ($Run['gameplay'] -and !$manifest.visibleFrames -and $manifest.peakParticles -gt 0) {
+        $previewSummary += ' The emitters ran but the capture did not detect the effect. Check the layer tint, alpha and contrast. The layer shader multiplies RGB by glow, with 1 as the neutral value.'
+    }
+    $finalMedium = $Run['finalMedium'] ?? 'using built-in procedural textures'
     $contextFile = Join-Path $Run.authorDirectory 'context.md'
     @"
 Inspect the draft capture in draft-preview or the attached frames. This is your draft preview in chronological order ($($frameNames -join ', ')). $previewSummary$measurements
 
-Refine the recipe based on how the draft matches the brief, including silhouette, motion, layer timing and fade. Submit the complete version 1 recipe in final.json using built-in procedural textures. The harness will export and render your final prefab. Use only this supplied context and work directory.
+Refine the recipe based on how the draft matches the brief, including silhouette, motion, layer timing and fade. Submit the complete version 1 recipe in final.json $finalMedium. The harness will export and render your final prefab. Use only this supplied context and work directory.
 
 $(Get-Content -LiteralPath $contextFile -Raw)
 

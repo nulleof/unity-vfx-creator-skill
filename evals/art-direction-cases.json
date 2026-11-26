@@ -1,0 +1,69 @@
+{
+  "training": [
+    {
+      "id": "verdigris-arc", "family": "segmented-edge",
+      "brief": "An angled teal sweep bites against a fixed target to the right of the actor. The sweep reaches about 1.5 actor widths and peels into two pieces after contact. The flash stays on the target while the flakes drift down.",
+      "mode": "oneShot", "actorWidth": 0.8, "eventTime": 0.12,
+      "capture": { "fps": 60, "duration": 1, "framing": 3.2, "cameraPitch": 40 },
+      "critical": "The brightest compact contact stays right of the actor and the sweep remains readable through its split."
+    },
+    {
+      "id": "saffron-front", "family": "detached-front-bands",
+      "brief": "A low saffron front opens from a pinched line, advances to the right and separates into three foam bands. It reaches 2.6 actor widths edge to edge. The residue stays behind the front.",
+      "mode": "oneShot", "actorWidth": 0.8, "eventTime": 0.15,
+      "capture": { "fps": 60, "duration": 1.25, "framing": 5, "cameraPitch": 48 },
+      "critical": "The front advances continuously while the residue remains behind it."
+    },
+    {
+      "id": "prism-dart", "family": "faceted-head-split-tail",
+      "brief": "A bright violet faceted dart travels to the right. Its narrow dark-purple wake has a bright root and a short-lived secondary fine streak. The head vanishes at the endpoint and the trail clears within a quarter second.",
+      "mode": "trail", "actorWidth": 0.8, "eventTime": 0.9,
+      "capture": { "fps": 60, "duration": 1.2, "framing": 5.6, "cameraPitch": 35, "travel": 3.2, "arc": 0.45 },
+      "critical": "The head stays at the moving origin, then the wake clears from the tail toward the endpoint."
+    }
+  ],
+  "holdouts": [
+    {
+      "id": "spring-contact", "family": "offset-spring-recoil", "mode": "oneShot",
+      "brief": "A spring-loaded practice tile snaps shut on a square ground peg 0.35 units to the actor's right. The contact at 0.10 s is a tiny lemon-white four-corner spark. A darker lavender rounded square recoils upward after the hit; three short fragments travel down and away. Keep the maximum shape within one actor width and clear by 0.38 s.",
+      "orientation": "Local Y up. The peg is on local +X.", "actorWidth": 0.8, "eventTime": 0.10,
+      "capture": { "fps": 60, "duration": 0.65, "framing": 3.2, "cameraPitch": 40 },
+      "frames": [4, 6, 9, 15, 23], "critical": "The brightest compact mark is at the peg around 0.10 s and stays within the stated bounds."
+    },
+    {
+      "id": "ink-hook", "family": "interrupted-calligraphy", "mode": "oneShot",
+      "brief": "A flat paper fan draws an upward-curving indigo brush hook toward screen right, then the hook separates into a short dry-brush segment and two loose dots. The dry crest is conspicuously darker than the pale lilac edge. At 0.20 s the tip reaches a point 0.65 units to the actor's right. Widest footprint is around 1.7 actor widths. Leave a visible gap inside the hook and clear by 0.62 s.",
+      "orientation": "Local Y up. Sweep and contact travel toward local +X.", "actorWidth": 0.8, "eventTime": 0.20,
+      "capture": { "fps": 60, "duration": 0.8, "framing": 3.6, "cameraPitch": 42 },
+      "frames": [6, 12, 16, 25, 37], "critical": "The dark hook has an open interior and lands to the right around 0.20 s."
+    },
+    {
+      "id": "paper-tide", "family": "accordion-ground-travel", "mode": "oneShot",
+      "brief": "Three overlapping coral paper folds open into a low wave, traveling right along the ground from 0.18 s to 0.60 s. The folded leading edge travels approximately 1.35 units, peaks at about 2.4 actor widths across the screen, and folds into sparse flat paper pieces left behind its path. Use shadow-colored panel faces and very narrow cream edge highlights. Clear by 0.95 s.",
+      "orientation": "Local Y up and local +X is the ground direction of advance.", "actorWidth": 0.8, "eventTime": 0.18,
+      "capture": { "fps": 60, "duration": 1.2, "framing": 5.2, "cameraPitch": 48 },
+      "frames": [8, 11, 23, 36, 57], "critical": "The leading edge moves right after 0.18 s and leaves the residue behind."
+    },
+    {
+      "id": "pollen-skip", "family": "looping-seed-head-with-wake", "mode": "trail",
+      "brief": "A cream-and-lime seed with a hollow oval center skips along the provided rightward arc. The bright leading rim is about 0.4 actor widths, with a softly curling moss-green wake and a few lagging pollen grains. The head stays on the moving origin until the end of travel at 0.90 s. Preserve a clear gap around the hollow center and clear the wake within 0.24 s of stop.",
+      "orientation": "Local Y up. The root follows the provided rightward travel and arc.", "actorWidth": 0.8, "eventTime": 0.9,
+      "capture": { "fps": 60, "duration": 1.2, "framing": 5.8, "cameraPitch": 36, "travel": 3.4, "arc": 0.55 },
+      "frames": [8, 22, 41, 54, 68], "critical": "The hollow bright head holds the leading position until stop and the wake tapers behind it."
+    },
+    {
+      "id": "lantern-attunement", "family": "orbits-with-release", "mode": "loop",
+      "brief": "An attunement surrounds a lantern-sized actor with two offset copper arcs at its feet. Settle into a continuous orbit by 0.35 s. Keep the center readable and the footprint within 1.7 actor widths; small blue motes drift upward at different rates. The caller removes the status at 1.20 s and the aura clears within 0.35 s of stop.",
+      "orientation": "Local Y up. Keep the orbit around the attached actor's feet.", "actorWidth": 0.8, "eventTime": 1.2,
+      "capture": { "fps": 60, "duration": 1.75, "framing": 3.7, "cameraPitch": 43 },
+      "frames": [9, 21, 42, 61, 72, 93], "critical": "The center remains open during the loop and the instance has cleared by 1.55 s in Play Mode."
+    },
+    {
+      "id": "porcelain-fold", "family": "collapse-pause-reveal", "mode": "oneShot",
+      "brief": "A porcelain portal closes at the actor in a narrow blue-white inward fold at 0.17 s. Leave a quiet interval from about 0.33 to 0.64 s, then reopen the portal at a fixed anchor 0.9 units to screen right. Make the exit peak at about 0.76 s, wider and slightly warmer than the entrance. Both openings should have a legible empty center and clear by 1.12 s.",
+      "orientation": "Local Y up. The exit is offset along local +X.", "actorWidth": 0.8, "eventTime": 0.17,
+      "capture": { "fps": 60, "duration": 1.25, "framing": 4.4, "cameraPitch": 40 },
+      "frames": [6, 10, 20, 35, 46, 60, 68], "critical": "There is a visible quiet interval, and the larger exit is anchored to the right."
+    }
+  ]
+}
