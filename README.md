@@ -7,6 +7,7 @@ The installable skill is the complete [`vfx-creator/`](vfx-creator/) directory. 
 ## Features
 
 - Create particle and trail effects as editable Unity prefabs.
+- Build and preview a gameplay prefab from a visual brief, with a JSON handoff for playback.
 - Find a starting recipe from a brief, then adapt or combine layers.
 - Generate textures, materials and shaders used by the effect.
 - Inventory local `.unitypackage` files and nested archives; learn recipe metadata from selected prefabs.
@@ -51,6 +52,15 @@ $vfx = './.agents/skills/vfx-creator/scripts/vfx.ps1'
 
 The pipeline also includes `Inventory`, `Learn`, `Render` and `Compare` actions. Run `& $vfx <Action> -?` for the parameters of an action. For a recipe-format reference, see [`vfx-creator/references/recipes.md`](vfx-creator/references/recipes.md). For workflow guidance, see [`vfx-creator/SKILL.md`](vfx-creator/SKILL.md).
 
+For a prefab you can trigger in gameplay, provide a [visual brief](vfx-creator/references/visual-brief.md) alongside the authored recipe.
+
+```powershell
+& $vfx Build -Project . -Recipe './effects/frost-aura-recipe.json' `
+    -EffectBrief './effects/frost-aura-brief.json'
+```
+
+The brief sets the final ID, attachment, playback mode and preview camera. The build returns the prefab, recipe, capture and `effect.json` paths. Use the manifest to wire a one-shot, a sustained effect or a moving trail to the corresponding event.
+
 ## Develop and evaluate
 
 Run the local workflow smoke check from the repository root:
@@ -64,6 +74,12 @@ To include local source-package inventory or a build and render in a clean URP p
 ```powershell
 pwsh -File tests/Test-VfxCreator.ps1 -SourceRoot '<path-to-your-effect-packs>'
 pwsh -File tests/Test-VfxCreator.ps1 -UnityProject '<path-to-a-clean-urp-project>'
+```
+
+Use a disposable Unity 6000.6.8f1 URP project to build and preview the three [gameplay examples](evals/gameplay-briefs.json) from an installed copy, test failed builds, and verify playback in Play Mode.
+
+```powershell
+pwsh -File tests/Test-EffectBrief.ps1 -UnityProject '<path-to-a-disposable-urp-project>'
 ```
 
 [`evals/cases.json`](evals/cases.json) defines five reconstruction examples and one catalog-expansion example. `evals/Invoke-Reconstruction.ps1` supports `Reference`, `Candidate`, `Review` and `Variant` stages. It writes local captures and HTML reports under `.vfx-work/` by default. Reference packages are not included; provide source packages that you are allowed to use.

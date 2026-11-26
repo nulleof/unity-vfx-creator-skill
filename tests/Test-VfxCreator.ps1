@@ -45,6 +45,7 @@ if ($UnityProject) {
     $id = 'portable-smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
     $receipt = & $installedPipeline Build -Project $target -Recipe $fixture.path -Id $id -RenderAfterBuild -Size 192 -Fps 20 -Duration 0.6
     if (!$receipt.ok -or !$receipt.visible -or !$receipt.dependencies.Count) { throw 'Portable build or capture failed.' }
+    if (Test-Path -LiteralPath (Join-Path $receipt.capture 'effect.json')) { throw 'A legacy build exported an effect brief manifest.' }
     $receipt
 }
 Write-Output "VFX Creator smoke checks passed ($($cases.Count) reference briefs, $($recipes.Count) catalog recipes)."

@@ -100,7 +100,7 @@ namespace VfxCreator.Editor
     internal static class Render
     {
         internal static IEnumerator Capture(GameObject prefab, CaptureSettings settings, GraphEvent[] schedule, string output,
-            Action<CaptureManifest> complete)
+            Action<CaptureManifest> complete, EffectPlayback playback = null)
         {
             if (settings == null || settings.fps < 1 || settings.size < 32 || settings.duration <= 0)
                 throw new ArgumentException("Invalid capture settings.");
@@ -155,6 +155,7 @@ namespace VfxCreator.Editor
                 var eventsByFrame = PlanEvents(graphs, manifest.graphEvents, manifest.frames);
                 var trails = root.GetComponentsInChildren<TrailRenderer>().Where(trail => trail.enabled).ToArray();
                 var trailSamples = Array.ConvertAll(trails, trail => new Queue<Vector3>());
+                var trailPreviews = playback == null ? null : Array.ConvertAll(trails, CreateTrailPreview);
                 var notes = new List<string>();
                 foreach (var behavior in root.GetComponentsInChildren<MonoBehaviour>())
                     if (behavior != null) behavior.enabled = false;
@@ -166,7 +167,7 @@ namespace VfxCreator.Editor
                     var main = systems[i].main;
                     main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
                 }
-                var emitters = systems.Where(system =>
+                var emitters = playback?.ResolveEmitters(root.transform) ?? systems.Where(system =>
                 {
                     var parent = system.transform.parent;
                     return system.main.playOnAwake && (parent == null || parent.GetComponentInParent<ParticleSystem>() == null ||
@@ -231,9 +232,19 @@ namespace VfxCreator.Editor
                         if (trailSamples[i].Count > Mathf.CeilToInt(trails[i].time * settings.fps) ||
                             (progress > 0.75f && trailSamples[i].Count > 0))
                             trailSamples[i].Dequeue();
-                        trails[i].Clear();
-                        if (trailSamples[i].Count > 0) trails[i].AddPositions(trailSamples[i].ToArray());
-                        manifest.peakTrailPoints = Math.Max(manifest.peakTrailPoints, trails[i].positionCount);
+                        if (trailPreviews == null)
+                        {
+                            trails[i].Clear();
+                            if (trailSamples[i].Count > 0) trails[i].AddPositions(trailSamples[i].ToArray());
+                        }
+                        else
+                        {
+                            var line = trailPreviews[i];
+                            var positions = trailSamples[i].Reverse().ToArray();
+                            line.positionCount = positions.Length;
+                            if (positions.Length > 1) line.SetPositions(positions);
+                        }
+                        manifest.peakTrailPoints = Math.Max(manifest.peakTrailPoints, trailSamples[i].Count);
                     }
                     yield return null;
                     ReadFrame(camera, target, image);
@@ -259,6 +270,31 @@ namespace VfxCreator.Editor
                 Object.DestroyImmediate(target);
                 Object.DestroyImmediate(profile);
             }
+        }
+
+        // Draw the sampled path in edit mode. The exported prefab still uses its original TrailRenderer.
+        private static LineRenderer CreateTrailPreview(TrailRenderer trail)
+        {
+            var preview = new GameObject("Trail preview");
+            preview.layer = trail.gameObject.layer;
+            preview.transform.SetParent(trail.transform, false);
+            var line = preview.AddComponent<LineRenderer>();
+            line.useWorldSpace = true;
+            line.sharedMaterials = trail.sharedMaterials;
+            line.widthCurve = trail.widthCurve;
+            line.widthMultiplier = trail.widthMultiplier;
+            line.colorGradient = trail.colorGradient;
+            line.numCornerVertices = trail.numCornerVertices;
+            line.numCapVertices = trail.numCapVertices;
+            line.alignment = trail.alignment;
+            line.textureMode = trail.textureMode;
+            line.textureScale = trail.textureScale;
+            line.sortingLayerID = trail.sortingLayerID;
+            line.sortingOrder = trail.sortingOrder;
+            line.shadowCastingMode = ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            trail.forceRenderingOff = true;
+            return line;
         }
 
         private static Dictionary<int, List<(VisualEffect graph, string name)>> PlanEvents(VisualEffect[] graphs,

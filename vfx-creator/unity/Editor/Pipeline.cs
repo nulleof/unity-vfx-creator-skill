@@ -29,6 +29,9 @@ namespace VfxCreator.Editor
         public bool renderAfterBuild;
         public CaptureSettings capture;
         public GraphEvent[] graphEvents;
+        public EffectBrief effectBrief;
+
+        internal bool HasEffectBrief => !string.IsNullOrEmpty(effectBrief?.mode);
     }
 
     [Serializable]
@@ -41,6 +44,7 @@ namespace VfxCreator.Editor
         public string recipe;
         public string analysis;
         public string capture;
+        public string effect;
         public string report;
         public string[] dependencies;
         public string[] notes;
@@ -77,14 +81,23 @@ namespace VfxCreator.Editor
                         if (!request.metadataOnly) capture = Capture(request, result, source);
                         break;
                     case "build":
-                        string prefab = Build.Prefab(JsonUtility.FromJson<Recipe>(File.ReadAllText(request.recipe)), request);
-                        VerifyGenerated(prefab, result);
-                        result.prefab = prefab;
+                        var buildRecipe = JsonUtility.FromJson<Recipe>(File.ReadAllText(request.recipe));
                         result.recipe = request.sourceRecipe;
+                        if (request.HasEffectBrief)
+                        {
+                            capture = BuildEffect(buildRecipe, request, result);
+                            break;
+                        }
+                        using (var staged = Build.Stage(buildRecipe, request, out _))
+                        {
+                            staged.Publish();
+                            result.prefab = staged.PublishedPath;
+                        }
+                        VerifyGenerated(result.prefab, result);
                         if (request.renderAfterBuild)
                         {
-                            request.prefab = prefab;
-                            capture = Capture(request, result, LoadPrefab(prefab));
+                            request.prefab = result.prefab;
+                            capture = Capture(request, result, LoadPrefab(result.prefab));
                         }
                         break;
                     case "render":
@@ -142,6 +155,29 @@ namespace VfxCreator.Editor
             EditorApplication.QueuePlayerLoopUpdate();
         }
 
+        private static IEnumerator BuildEffect(Recipe recipe, Request request, Receipt result)
+        {
+            using var staged = Build.Stage(recipe, request, out var playback);
+            VerifyGenerated(staged.Path, result);
+            request.prefab = staged.Path;
+            var preview = Capture(request, result, LoadPrefab(staged.Path), playback);
+            try
+            {
+                while (preview.MoveNext()) yield return preview.Current;
+            }
+            finally
+            {
+                (preview as IDisposable)?.Dispose();
+            }
+
+            playback.prefab = staged.PublishedPath;
+            string manifest = Path.Combine(request.output, "effect.json");
+            staged.Publish(() => WriteJson(manifest, playback));
+            result.prefab = playback.prefab;
+            result.dependencies = AssetDatabase.GetDependencies(result.prefab, true);
+            result.effect = manifest;
+        }
+
         private static void Finish(Request request, Receipt result)
         {
             WriteJson(request.response, result);
@@ -156,7 +192,7 @@ namespace VfxCreator.Editor
                 throw new FileNotFoundException("Unity could not load " + path);
         }
 
-        private static IEnumerator Capture(Request request, Receipt result, GameObject source)
+        private static IEnumerator Capture(Request request, Receipt result, GameObject source, EffectPlayback playback = null)
         {
             return Render.Capture(source, request.capture, request.graphEvents, request.output, capture =>
             {
@@ -165,7 +201,7 @@ namespace VfxCreator.Editor
                 result.visible = capture.visibleFrames > 0;
                 result.notes = (result.notes ?? Array.Empty<string>()).Concat(capture.notes).ToArray();
                 if (!result.visible) throw new InvalidOperationException("The capture contains no visible frames. Inspect " + request.output);
-            });
+            }, playback);
         }
 
         private static void VerifyGenerated(string prefab, Receipt result)

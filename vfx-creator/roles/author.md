@@ -2,6 +2,8 @@
 
 Inputs are the brief, installed catalog and a clean Unity URP project. Return the draft and final recipes, prefabs and render directories. In a blind run, use the brief, catalog and your own renders as visual evidence.
 
+For a gameplay prefab, use the [visual brief](../references/visual-brief.md) for the appearance, capture settings and playback mode. Build drafts under a separate ID in a disposable URP project with matching rendering settings when available. Design each independently triggered or attached effect as its own prefab. Keep the defining silhouette distinct from accent particles, and plan the fade according to when the caller stops emission. A sustained aura that should fade within half a second needs short-lived overlapping layers, including its persistent rim.
+
 Use `Find` to locate examples. Adapt a whole recipe when its main silhouette, movement and phase structure fit the brief. If only the accent or palette matches, borrow the useful layers and synthesize the dominant shape and timing. Keep the identifiable aspects of an effect when making a requested variation. Start with the few shapes that carry the action, then add material and motion details.
 
 For each layer, decide its onset, emitter duration, particle lifetime, location, motion and change in size and opacity. Use the intended camera to translate the brief's image-plane dimensions into world scale. A ground-aligned ring projects differently from a camera-facing billboard. For a moving effect, set the path, orientation and speed first. Match trail thickness and taper along that path, then tune lifetime to control how much of the path stays visible.

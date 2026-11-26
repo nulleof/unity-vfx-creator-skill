@@ -12,7 +12,7 @@ namespace VfxCreator.Editor
     {
         private const string OutputRoot = "Assets/VfxCreatorGenerated";
 
-        internal static string Prefab(Recipe recipe, Request request)
+        internal static StagedPrefab Stage(Recipe recipe, Request request, out EffectPlayback playback)
         {
             if (recipe.version != 1 || recipe.layers == null || recipe.layers.Length == 0)
                 throw new ArgumentException("Expected a version 1 recipe with at least one layer.");
@@ -22,8 +22,9 @@ namespace VfxCreator.Editor
             if (!AssetDatabase.IsValidFolder(OutputRoot)) AssetDatabase.CreateFolder("Assets", "VfxCreatorGenerated");
             string destination = OutputRoot + "/" + id;
             if (Directory.Exists(destination))
-                throw new IOException($"'{destination}' already exists. Use a new -Id to preserve references to previous prefabs.");
+                throw new IOException($"'{destination}' already exists. Choose a new output ID to preserve prefab references.");
             string work = OutputRoot + "/staging-" + Guid.NewGuid().ToString("N");
+            var staged = new StagedPrefab(work, destination);
             AssetDatabase.CreateFolder(OutputRoot, Path.GetFileName(work));
             var root = new GameObject(string.IsNullOrWhiteSpace(recipe.title) ? id : recipe.title);
             try
@@ -66,16 +67,54 @@ namespace VfxCreator.Editor
                     else throw new ArgumentException($"Unknown layer kind '{layer.kind}'.");
                 }
                 ConnectSubEmitters(recipe, systems);
-                var prefab = PrefabUtility.SaveAsPrefabAsset(root, work + "/Effect.prefab", out bool saved);
+                playback = request.HasEffectBrief ? EffectPlayback.Prepare(root, recipe, systems, request) : null;
+                var prefab = PrefabUtility.SaveAsPrefabAsset(root, staged.Path, out bool saved);
                 if (!saved || prefab == null) throw new IOException("Unity could not save the prefab.");
                 AssetDatabase.SaveAssets();
-                string error = AssetDatabase.MoveAsset(work, destination);
-                if (!string.IsNullOrEmpty(error)) throw new IOException(error);
-                return destination + "/Effect.prefab";
+                return staged;
+            }
+            catch
+            {
+                staged.Dispose();
+                throw;
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        internal sealed class StagedPrefab : IDisposable
+        {
+            private readonly string work;
+            private readonly string destination;
+
+            internal StagedPrefab(string work, string destination)
+            {
+                this.work = work;
+                this.destination = destination;
+            }
+
+            internal string Path => work + "/Effect.prefab";
+            internal string PublishedPath => destination + "/Effect.prefab";
+
+            internal void Publish(Action complete = null)
+            {
+                string error = AssetDatabase.MoveAsset(work, destination);
+                if (!string.IsNullOrEmpty(error)) throw new IOException(error);
+                try
+                {
+                    complete?.Invoke();
+                }
+                catch
+                {
+                    AssetDatabase.DeleteAsset(destination);
+                    throw;
+                }
+            }
+
+            public void Dispose()
+            {
                 if (AssetDatabase.IsValidFolder(work)) AssetDatabase.DeleteAsset(work);
             }
         }

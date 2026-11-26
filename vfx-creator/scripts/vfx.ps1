@@ -32,7 +32,8 @@ param(
     [ValidateRange(0, 100.0)][float]$Travel = 0,
     [ValidateRange(0, 100.0)][float]$Arc = 0,
     [ValidateRange(1, 2147483647)][int]$Seed = 1729,
-    [ValidateRange(1, 180)][int]$TimeoutMinutes = 12
+    [ValidateRange(1, 180)][int]$TimeoutMinutes = 12,
+    [string]$EffectBrief
 )
 
 $ErrorActionPreference = 'Stop'
@@ -66,6 +67,50 @@ function Require-VfxArgument([string]$Name, [string]$Value) {
 
 function Full-VfxPath([string]$Path) {
     return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+}
+
+function Read-VfxEffectBrief([string]$Path, $Capture) {
+    $data = Get-Content -LiteralPath (Full-VfxPath $Path) -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+    if ($data -isnot [System.Collections.IDictionary] -or $data['version'] -isnot [long] -or $data['version'] -ne 1) {
+        throw 'An effect brief must be a JSON object with version 1.'
+    }
+    if ($data['id'] -isnot [string] -or $data['id'] -cnotmatch '\A[a-z0-9][a-z0-9-]{0,63}\z') {
+        throw 'The effect brief id must contain 1–64 lowercase letters, digits or hyphens.'
+    }
+    if ($data['mode'] -isnot [string] -or $data['mode'] -cnotin @('oneShot', 'loop', 'trail')) {
+        throw 'The effect brief mode must be oneShot, loop or trail.'
+    }
+    if ($data['description'] -isnot [string] -or [string]::IsNullOrWhiteSpace($data['description'])) {
+        throw 'The effect brief needs a description of the expected appearance.'
+    }
+    $attachment = $data['attachment']
+    if ($attachment -isnot [System.Collections.IDictionary] -or
+        $attachment['anchor'] -isnot [string] -or [string]::IsNullOrWhiteSpace($attachment['anchor']) -or
+        $attachment['orientation'] -isnot [string] -or [string]::IsNullOrWhiteSpace($attachment['orientation'])) {
+        throw 'The effect brief needs attachment.anchor and attachment.orientation strings.'
+    }
+    if ($null -ne $data['capture']) {
+        if ($data['capture'] -isnot [System.Collections.IDictionary]) { throw 'Effect brief capture must be an object.' }
+        $limits = @{
+            size = @(32, 2048); fps = @(1, 120); duration = @(0.05, 20); framing = @(0.1, 100)
+            cameraPitch = @(-89, 89); travel = @(0, 100); arc = @(0, 100); seed = @(1, 2147483647)
+        }
+        foreach ($key in $data['capture'].Keys) {
+            if ($key -cnotin $limits.Keys) { throw "Unknown effect brief capture setting '$key'." }
+            $value = $data['capture'][$key]
+            $min, $max = $limits[$key]
+            $integer = $key -in @('size', 'fps', 'seed')
+            $number = $value -is [long] -or (!$integer -and $value -is [double] -and [double]::IsFinite($value))
+            if (!$number -or $value -lt $min -or $value -gt $max) {
+                throw "Effect brief capture.$key must be a number from $min to $max$(if ($integer) { ' and must be an integer' })."
+            }
+            $Capture[$key] = $value
+        }
+    }
+    if ($data['mode'] -eq 'trail' -and [single]$Capture.travel -eq 0 -and [single]$Capture.arc -eq 0) {
+        throw 'A trail effect brief needs nonzero capture.travel or capture.arc.'
+    }
+    return $data
 }
 
 function Find-VfxEditor([string]$Release) {
@@ -257,6 +302,17 @@ function Invoke-VfxUnity($Unity, $Request, [string]$Run) {
     }
 }
 
+$effectSpec = $null
+$captureSettings = @{ size = $Size; fps = $Fps; duration = $Duration; framing = $Framing; cameraPitch = $CameraPitch; travel = $Travel; arc = $Arc; seed = $Seed }
+if ($PSBoundParameters.ContainsKey('EffectBrief')) {
+    if ($Action -ne 'Build') { throw '-EffectBrief requires Build.' }
+    foreach ($name in @('Id') + @($captureSettings.Keys)) {
+        if ($PSBoundParameters.ContainsKey($name)) { throw "-$name belongs in the effect brief when using -EffectBrief." }
+    }
+    $effectSpec = Read-VfxEffectBrief $EffectBrief $captureSettings
+    $Id = $effectSpec.id
+}
+
 if ($Action -eq 'Init') { Initialize-VfxProject; return }
 if ($Action -eq 'Find') { Find-VfxRecipe; return }
 
@@ -291,8 +347,16 @@ $request = @{
     output = if ($Output) { Full-VfxPath $Output } else { Join-Path $run 'output' }
     prefab = $Prefab
     id = $Id
-    capture = @{ size = $Size; fps = $Fps; duration = $Duration; framing = $Framing; cameraPitch = $CameraPitch; travel = $Travel; arc = $Arc; seed = $Seed }
+    capture = $captureSettings
     graphEvents = $graphSchedule
+}
+if ($effectSpec) {
+    if ((Test-Path -LiteralPath $request.output -PathType Leaf) -or
+        ((Test-Path -LiteralPath $request.output -PathType Container) -and
+        (Get-ChildItem -LiteralPath $request.output -Force | Select-Object -First 1))) {
+        throw 'An effect brief build requires a fresh or empty output directory.'
+    }
+    $request.effectBrief = $effectSpec
 }
 
 if ($Action -eq 'Learn') {
